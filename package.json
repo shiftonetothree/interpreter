@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/shiftonetothree/interpreter#readme",
   "dependencies": {
+    "to-regex": "^3.0.2",
     "ts-node": "^8.1.0",
     "typescript": "^3.4.4"
   }
