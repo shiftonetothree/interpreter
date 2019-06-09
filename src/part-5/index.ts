@@ -6,13 +6,15 @@ function isNumber(str: string){
 function isSpace(str: string){
     return toRegex([" "]).test(str);
 }
-export function part4(program: string){
+export function part5(program: string){
     const lexer = new Lexer(program);
     const interpreter = new Interpreter(lexer);
     return interpreter.expr();
 }
-type Type = "INTEGER"|"MUL"|"DIV"|"EOF"|"STARTER";
+type Type = "INTEGER"|"PLUS"|"MINUS"|"MUL"|"DIV"|"EOF"|"STARTER";
 const INTEGER = "INTEGER";
+const PLUS = "PLUS";
+const MINUS = "MINUS";
 const MUL = "MUL";
 const DIV = "DIV";
 const EOF = "EOF";
@@ -30,7 +32,7 @@ class Token{
 class Lexer{
     private pos = 0;
     private currentChar: string|null = this.text[this.pos];
-
+    
     constructor(private text: string){
 
     }
@@ -43,6 +45,14 @@ class Lexer{
             }
             if (isNumber(this.currentChar)){
                 return new Token(INTEGER,this.integer());
+            }
+            if (this.currentChar === "+"){
+                this.advance();
+                return new Token(PLUS, this.currentChar);
+            }
+            if (this.currentChar === "-"){
+                this.advance();
+                return new Token(MINUS, this.currentChar);
             }
             if (this.currentChar === "*"){
                 this.advance();
@@ -104,7 +114,7 @@ class Interpreter{
         return currentToken.value as number;      
     }
 
-    expr(){
+    term(){
         const left = this.factor();
         let result = left;
 
@@ -116,6 +126,25 @@ class Interpreter{
             }else if(op.type === DIV){
                 this.eat(DIV);
                 result = result / this.factor();
+            }else{
+                throw new Error();
+            }
+        }
+        return result;      
+    }
+
+    expr(){
+        const left = this.term();
+        let result = left;
+
+        while(this.currentToken.type === PLUS || this.currentToken.type === MINUS ){
+            const op = this.currentToken;
+            if(op.type === PLUS){
+                this.eat(PLUS);
+                result = result + this.term();
+            }else if(op.type === MINUS){
+                this.eat(MINUS);
+                result = result - this.term();
             }else{
                 throw new Error();
             }
