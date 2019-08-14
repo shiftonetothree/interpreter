@@ -33,6 +33,12 @@ class BinOp extends AST{
     }
 }
 
+class UnaryOp extends AST{
+    constructor(public token: Token, public right:AST){
+        super();
+    }
+}
+
 class Num extends AST{
     value: number;
     constructor(public token: Token){
@@ -139,7 +145,13 @@ class Parser{
 
     factor(): AST{
         const currentToken = this.currentToken;
-        if(currentToken.type === INTEGER){
+        if(currentToken.type === PLUS){
+            this.eat(PLUS);
+            return new UnaryOp(currentToken, this.factor());
+        }else if(currentToken.type === MINUS){
+            this.eat(MINUS);
+            return new UnaryOp(currentToken, this.factor());
+        }else if(currentToken.type === INTEGER){
             this.eat(INTEGER);
             return new Num(currentToken);
         }else if(this.currentToken.type === LPAREN){
@@ -204,6 +216,8 @@ class Interpreter extends NodeVisitor{
             return this.visitNum(node);
         }else if(node instanceof BinOp){
             return this.visitBinOp(node);
+        }else if(node instanceof UnaryOp){
+            return this.visitUnaryOp(node);
         }else{
             throw new Error("ast错误");
         }
@@ -220,6 +234,15 @@ class Interpreter extends NodeVisitor{
             return this.visit(node.left) * this.visit(node.right);
         }else if(node.token.type === "DIV"){
             return this.visit(node.left) / this.visit(node.right);
+        }else{
+            throw new Error("ast错误");
+        }
+    }
+    visitUnaryOp(node: UnaryOp): number{
+        if(node.token.type === "PLUS"){
+            return + this.visit(node.right);
+        }else if(node.token.type === "MINUS"){
+            return - this.visit(node.right);
         }else{
             throw new Error("ast错误");
         }
