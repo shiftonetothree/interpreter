@@ -18,7 +18,7 @@ export function part9(program: string){
     const interpreter = new Interpreter(parser);
     return interpreter.interpret();
 }
-type Type = "INTEGER"|"PLUS"|"MINUS"|"MUL"|"DIV"|"("|")"|"EOF"|"STARTER"|"BEGIN"|"END"|"ID";
+type Type = "INTEGER"|"PLUS"|"MINUS"|"MUL"|"DIV"|"("|")"|"EOF"|"STARTER"|"BEGIN"|"END"|"ID"|"ASSIGN"|"SEMI";
 const INTEGER = "INTEGER";
 const PLUS = "PLUS";
 const MINUS = "MINUS";
@@ -31,6 +31,9 @@ const STARTER = "STARTER";
 const BEGIN = "BEGIN";
 const END = "END";
 const ID = "ID";
+const ASSIGN = "ASSIGN";
+const SEMI = "SEMI";
+const DOT = "DOT";
 
 class AST{
 
@@ -82,6 +85,18 @@ class Lexer{
             if(isSpace(this.currentChar)){
                 this.skipWhitespace();
                 continue;
+            }
+            if (isAlphabet(this.currentChar)){
+                return this.id();
+            }
+            if (this.currentChar === ":" && this.peek() === "="){
+                this.advance();
+                this.advance();
+                return new Token(ASSIGN,":=");
+            }
+            if (this.currentChar === ";"){
+                this.advance();
+                return new Token(SEMI,";");
             }
             if (isNumber(this.currentChar)){
                 return new Token(INTEGER,this.integer());
