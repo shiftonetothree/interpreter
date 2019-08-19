@@ -10,7 +10,7 @@ function isAlphabet(str: string){
     ]).test(str);
 }
 function isSpace(str: string){
-    return toRegex([" "]).test(str);
+    return toRegex([" ","\n","\r"]).test(str);
 }
 export function part9(program: string){
     const lexer = new Lexer(program);
@@ -18,7 +18,7 @@ export function part9(program: string){
     const interpreter = new Interpreter(parser);
     return interpreter.interpret();
 }
-type Type = "INTEGER"|"PLUS"|"MINUS"|"MUL"|"DIV"|"("|")"|"EOF"|"STARTER"|"BEGIN"|"END"|"ID"|"ASSIGN"|"SEMI";
+
 const INTEGER = "INTEGER";
 const PLUS = "PLUS";
 const MINUS = "MINUS";
@@ -35,8 +35,31 @@ const ASSIGN = "ASSIGN";
 const SEMI = "SEMI";
 const DOT = "DOT";
 
+type Type = "INTEGER"|"PLUS"|"MINUS"|"MUL"|"DIV"|"("|")"|"EOF"|"STARTER"|"BEGIN"|"END"|"ID"|"ASSIGN"|"SEMI"|"DOT";
+
 class AST{
 
+}
+
+class Assign extends AST{
+    constructor(public left: Var, public token: Token, public right:AST){
+        super();
+    }
+}
+
+class Var extends AST{
+    value: string | number;
+    constructor(public token: Token){
+        super();
+        this.value = token.value as string;
+    }
+}
+
+class NoOp extends AST{
+}
+
+class Compound extends AST{
+    children: AST[]=[];
 }
 
 class BinOp extends AST{
@@ -97,6 +120,10 @@ class Lexer{
             if (this.currentChar === ";"){
                 this.advance();
                 return new Token(SEMI,";");
+            }
+            if (this.currentChar === "."){
+                this.advance();
+                return new Token(DOT,".");
             }
             if (isNumber(this.currentChar)){
                 return new Token(INTEGER,this.integer());
@@ -188,12 +215,28 @@ class Parser{
     }
 
     eat(type: Type){
-        if(this.currentToken!=undefined && this.currentToken.type === type){
+        if(this.currentToken != undefined && this.currentToken.type === type){
             this.currentToken = this.lexer.getNextToken();
         }else{
             throw new Error();
         }
     }
+
+    parse(){
+        const node = this.program();
+        if(this.currentToken.type !== EOF){
+            throw new Error();
+        }
+        return node;
+    }
+
+    program(){
+        const node = this.compoundStatement();
+        this.eat(DOT);
+        return node;
+    }
+
+    
 
     factor(): AST{
         const currentToken = this.currentToken;
@@ -212,7 +255,7 @@ class Parser{
             this.eat(RPAREN);
             return result;
         }else{
-            throw new Error();
+            return this.variable();
         }
     }
 
@@ -253,13 +296,71 @@ class Parser{
         }
         return result;
     }
+
+    compoundStatement(): AST{
+        this.eat(BEGIN);
+        const nodes = this.statementList();
+        this.eat(END);
+        const root = new Compound();
+        for(const node of nodes){
+            root.children.push(node);
+        }
+        return root;
+    }
+
+    statementList(): AST[]{
+        const node = this.statement();
+        const results= [node];
+        while (this.currentToken.type === SEMI){
+            this.eat(SEMI);
+            results.push(this.statement());
+        }
+        if(this.currentToken.type === ID){
+            throw new Error();
+        }
+        return results;
+    }
+
+    statement(): AST{
+        let node: AST;
+        if(this.currentToken.type === BEGIN){
+            node = this.compoundStatement();
+        }else if(this.currentToken.type=== "ID"){
+            node =this.assignmentStatement();
+        }else{
+            node = this.empty();
+        }
+        return node;
+    }
+
+    assignmentStatement(): AST{
+        const left = this.variable();
+        const token = this.currentToken;
+        this.eat(ASSIGN);
+        const right = this.expr();
+        const node= new Assign(left,token,right);
+        return node;
+    }
+
+    variable(){
+        const node = new Var(this.currentToken);
+        this.eat(ID);
+        return node;
+    }
+
+    empty(){
+        return new NoOp();
+    }
 }
 
 abstract class NodeVisitor{
-    abstract visit(node: AST): AST;
+    abstract visit(node: AST): number | void;
 }
 
 class Interpreter extends NodeVisitor{
+    GLOBAL_SCOPE:{
+        [key: string]: number;
+    } = {}
     constructor(public parser: Parser){
         super();
     }
@@ -270,6 +371,14 @@ class Interpreter extends NodeVisitor{
             return this.visitBinOp(node);
         }else if(node instanceof UnaryOp){
             return this.visitUnaryOp(node);
+        }else if(node instanceof Compound){
+            return this.visitCompound(node);
+        }else if(node instanceof Assign){
+            return this.visitAssign(node);
+        }else if(node instanceof Var){
+            return this.visitVar(node);
+        }else if(node instanceof NoOp){
+            return this.visitNoOp(node);
         }else{
             throw new Error("ast错误");
         }
@@ -278,29 +387,71 @@ class Interpreter extends NodeVisitor{
         return node.value;
     }
     visitBinOp(node: BinOp): number{
+        const leftVal = this.visit(node.left);
+        const rightVal = this.visit(node.right);
+        if(leftVal === undefined || rightVal === undefined){
+            throw new Error("ast错误");
+        }
         if(node.token.type === "PLUS"){
-            return this.visit(node.left) + this.visit(node.right);
+            return leftVal + rightVal;
         }else if(node.token.type === "MINUS"){
-            return this.visit(node.left) - this.visit(node.right);
+            return leftVal - rightVal;
         }else if(node.token.type === "MUL"){
-            return this.visit(node.left) * this.visit(node.right);
+            return leftVal * rightVal;
         }else if(node.token.type === "DIV"){
-            return this.visit(node.left) / this.visit(node.right);
+            return leftVal / rightVal;
         }else{
             throw new Error("ast错误");
         }
     }
     visitUnaryOp(node: UnaryOp): number{
+        const rightVal = this.visit(node.right);
+        if(rightVal === undefined){
+            throw new Error("ast错误");
+        }
         if(node.token.type === "PLUS"){
-            return + this.visit(node.right);
+            return + rightVal;
         }else if(node.token.type === "MINUS"){
-            return - this.visit(node.right);
+            return - rightVal;
         }else{
             throw new Error("ast错误");
         }
     }
+
+    visitAssign(node: Assign){
+        const varName = node.left.value;
+        const val = this.visit(node.right);
+        if(val === undefined){
+            throw new Error();
+        }else{
+            this.GLOBAL_SCOPE[varName] = val;
+        }
+        
+    }
+
+    visitNoOp(node: NoOp){
+
+    }
+
+    visitVar(node: Var){
+        const varName= node.value;
+        const val = this.GLOBAL_SCOPE[varName];
+        if(val === undefined){
+            throw new Error(`variable ${val} is undefined`);
+        }else{
+            return val;
+        }
+    }
+
+    visitCompound(node: Compound){
+        for(const child of node.children){
+            this.visit(child);
+        }
+    }
+
     interpret(){
-        const tree = this.parser.expr();
-        return this.visit(tree);
+        const tree = this.parser.parse();
+        this.visit(tree);
+        return this.GLOBAL_SCOPE;
     }
 }
