@@ -1,5 +1,7 @@
-import { part10 } from "./part-10";
-console.log(part10(`
+import {part10} from ".";
+
+test("program a", () => {
+    expect(part10(`
 BEGIN
 
     BEGIN
@@ -11,4 +13,5 @@ BEGIN
 
     x := 11;
 END.
-`));
+    `)).toEqual({number: 2, a: 2, b: 25, c: 27, x: 11});
+});
