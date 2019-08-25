@@ -15,8 +15,20 @@ function isSpace(str: string){
 export function part11(program: string){
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
-    const interpreter = new Interpreter(parser);
-    return interpreter.interpret();
+    const tree = parser.parse(); 
+    const symtabBuilder = new SymbolTableBuilder();
+    console.debug("");
+    console.debug("Symbol Table contents:");
+    console.debug(symtabBuilder.symtab);
+    symtabBuilder.visit(tree);
+
+    const interpreter  = new Interpreter();
+    const result = interpreter.interpret(tree);
+
+    console.debug("");
+    console.debug("Run-time GLOBAL_MEMORY contents:");
+    console.debug(result);
+    return result;
 }
 
 const INTEGER = "INTEGER";
@@ -105,7 +117,7 @@ class Assign extends AST{
 }
 
 class Var extends AST{
-    value: string | number;
+    value: string;
     constructor(public token: Token){
         super();
         this.value = token.value as string;
@@ -345,7 +357,7 @@ class Parser{
     program(){
         this.eat(PROGRAM);
         const varNode = this.variable();
-        const progName = varNode.value as string;
+        const progName = varNode.value;
         this.eat(SEMI);
         const blockNode =this.block();
         const programNode = new Program(progName, blockNode);
@@ -527,19 +539,63 @@ class Parser{
 
 }
 
-abstract class NodeVisitor{
-    abstract visit(node: AST): number | void;
-}
+class MySymbol{
+    constructor(public name: string,public type?:Symbol){
 
-class Interpreter extends NodeVisitor{
-    GLOBAL_SCOPE:{
-        [key: string]: number;
-    } = {}
-
-    constructor(public parser: Parser){
-        super();
     }
 
+    toString(){
+        return this.name;
+    }
+}
+
+class BuiltinTypeSymbol extends MySymbol{
+    
+}
+
+class VarSymbol extends MySymbol{
+    constructor(name: string, type: Symbol){
+        super(name, type);
+    }
+
+    toString(){
+        return `<${this.name}:${this.type}>`;
+    }
+}
+
+class SymbolTable {
+    private symbols:{
+        [key:string]: MySymbol | undefined;
+    } = {};
+
+    constructor(){
+        this.define(new BuiltinTypeSymbol(INTEGER));
+        this.define(new BuiltinTypeSymbol(REAL));
+    }
+
+    define(symbol: MySymbol){
+        console.debug(`Define: ${symbol}`);
+        this.symbols[symbol.name] = symbol;
+    }
+
+    lookup(name: string){
+        console.debug(`Lookup: ${name}`);
+        const symbol = this.symbols[name];
+        return symbol;
+    }
+
+    toString(){
+        const values: MySymbol[] = [];
+        for(let key in this.symbols){
+            values.push(this.symbols[key] as MySymbol);
+        }
+        const s = `Symbols: ${values.join(",")}`;
+        return s;
+    }
+}
+
+
+abstract class NodeVisitor{
     visit(node: AST){
         if(node instanceof Num){
             return this.visitNum(node);
@@ -566,6 +622,113 @@ class Interpreter extends NodeVisitor{
         }else{
             throw new Error("ast错误");
         }
+    }
+
+    visitNum(node: Num){
+    }
+
+    visitProgram(node: Program){
+    }
+
+    visitBlock(node: Block){
+    }
+
+    visitVarDecl(node: VarDecl){
+    }
+
+    visitType(node: Type){
+    }
+
+    visitBinOp(node: BinOp): any{
+    }
+
+    visitUnaryOp(node: UnaryOp): any{
+    }
+
+    visitAssign(node: Assign){
+    }
+
+    visitNoOp(node: NoOp){
+    }
+
+    visitVar(node: Var){
+    }
+
+    visitCompound(node: Compound){
+    }
+}
+
+class SymbolTableBuilder extends NodeVisitor{
+
+    symtab = new SymbolTable();
+
+    visitProgram(node: Program){
+        this.visit(node.block);
+    }
+
+    visitBlock(node: Block){
+        for(const declaration of node.declarations){
+            this.visit(declaration);
+        }
+        this.visit(node.compoundStatement);
+    }
+
+    visitVarDecl(node: VarDecl){
+        const typeName = node.typeNode.value;
+        const typeSymbol = this.symtab.lookup(typeName);
+        const varName = node.varNode.value;
+        // @ts-ignore
+        const varSymbol = new VarSymbol(varName, typeSymbol);
+        this.symtab.define(varSymbol);
+    }
+
+    visitType(node: Type){
+
+    }
+
+    visitBinOp(node: BinOp): any{
+        this.visit(node.left);
+        this.visit(node.right);
+    }
+    visitUnaryOp(node: UnaryOp): any{
+        this.visit(node.right);
+    }
+
+    visitAssign(node: Assign){
+        const varName = node.left.value;
+        const varSymbol = this.symtab.lookup(varName);
+        if(varSymbol === undefined){
+            throw new Error(`name not found for "${varName}"`);
+        }
+        this.visit(node.right);
+    }
+
+    visitNoOp(node: NoOp){
+
+    }
+
+    visitVar(node: Var){
+        const varName = node.value;
+        const varSymbol = this.symtab.lookup(varName);
+        if(varSymbol === undefined){
+            throw new Error(`name not found for "${varName}"`);
+        }
+    }
+
+    visitCompound(node: Compound){
+        for(const child of node.children){
+            this.visit(child);
+        }
+    }
+}
+
+class Interpreter extends NodeVisitor{
+    GLOBAL_SCOPE:{
+        [key: string]: number;
+    } = {}
+
+    constructor(){
+        super();
     }
 
     visitNum(node: Num){
@@ -643,11 +806,7 @@ class Interpreter extends NodeVisitor{
     visitVar(node: Var){
         const varName= node.value;
         const val = this.GLOBAL_SCOPE[varName];
-        if(val === undefined){
-            throw new Error(`variable ${val} is undefined`);
-        }else{
-            return val;
-        }
+        return val;
     }
 
     visitCompound(node: Compound){
@@ -656,8 +815,7 @@ class Interpreter extends NodeVisitor{
         }
     }
 
-    interpret(){
-        const tree = this.parser.parse();
+    interpret(tree: Program){
         this.visit(tree);
         return this.GLOBAL_SCOPE;
     }
