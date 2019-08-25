@@ -1,5 +1,7 @@
-import { part11 } from "./part-11";
-console.log(part11(`
+import {part11} from ".";
+
+test("program a", () => {
+    expect(part11(`
 PROGRAM Part10AST;
 VAR
     a, b : INTEGER;
@@ -10,4 +12,5 @@ BEGIN {Part10AST}
     b := 10 * a + 10 * a DIV 4;
     y := 20 / 7 + 3.14;
 END.  {Part10AST}
-`));
+    `)).toEqual({a: 2, b: 25, y: 5.997142857142857});
+});
