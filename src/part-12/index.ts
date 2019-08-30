@@ -45,15 +45,17 @@ const ID = "ID";
 const ASSIGN = "ASSIGN";
 const SEMI = "SEMI";
 const DOT = "DOT";
-const PROGRAM = "PROGRAM"
-const VAR = "VAR"
-const INTEGER_DIV = "INTEGER_DIV"
-const REAL = "REAL"
-const INTEGER_CONST = "INTEGER_CONST"
-const REAL_CONST = "REAL_CONST"
+const PROGRAM = "PROGRAM";
+const PROCEDURE = "PROCEDURE";
+const VAR = "VAR";
+const INTEGER_DIV = "INTEGER_DIV";
+const REAL = "REAL";
+const INTEGER_CONST = "INTEGER_CONST";
+const REAL_CONST = "REAL_CONST";
 const COLON = "COLON";
 const COMMA = "COMMA";
 const FLOAT_DIV = "FLOAT_DIV";
+
 
 type TokenType = 
 "INTEGER"
@@ -78,7 +80,8 @@ type TokenType =
 |"REAL_CONST"
 |"COLON"
 |"COMMA"
-|"FLOAT_DIV";
+|"FLOAT_DIV"
+|"PROCEDURE";
 
 class AST{
 
@@ -98,6 +101,12 @@ class Block extends AST{
 
 class VarDecl extends AST{
     constructor(public varNode: Var, public typeNode: Type){
+        super();
+    }
+}
+
+class ProcedureDecl extends AST{
+    constructor(public procName: string, public blockNode: Block){
         super();
     }
 }
@@ -171,6 +180,7 @@ class Lexer{
         "REAL": new Token(REAL, "REAL"),
         "BEGIN": new Token(BEGIN,"BEGIN"),
         "END": new Token(END,"END"),
+        "PROCEDURE": new Token(PROCEDURE,"PROCEDURE"),
     }
     
     constructor(private text: string){
@@ -451,6 +461,17 @@ class Parser{
                 this.eat(SEMI);
             };
         }
+        while (this.currentToken.type === PROCEDURE){
+            this.eat(PROCEDURE);
+            const procName = this.currentToken.value;
+            this.eat(ID);
+            this.eat(SEMI);
+            const blockNode= this.block();
+            // @ts-ignore
+            const procDecl = new ProcedureDecl(procName,blockNode);
+            declarations.push(procDecl);
+            this.eat(SEMI);
+        }
         return declarations;
     }
 
@@ -619,6 +640,8 @@ abstract class NodeVisitor{
             return this.visitVar(node);
         }else if(node instanceof NoOp){
             return this.visitNoOp(node);
+        }else if(node instanceof ProcedureDecl){
+            return this.visitProcedureDecl(node);
         }else{
             throw new Error("ast错误");
         }
@@ -655,6 +678,9 @@ abstract class NodeVisitor{
     }
 
     visitCompound(node: Compound){
+    }
+
+    visitProcedureDecl(node: ProcedureDecl){
     }
 }
 
@@ -720,6 +746,7 @@ class SymbolTableBuilder extends NodeVisitor{
             this.visit(child);
         }
     }
+
 }
 
 class Interpreter extends NodeVisitor{
