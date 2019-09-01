@@ -1,4 +1,4 @@
-import {part13} from ".";
+import { part13, Lexer, SemanticAnalyzer, Parser} from ".";
 
 test("Part10AST", () => {
     expect(part13(`
@@ -95,4 +95,57 @@ BEGIN {Part12}
     a := 10;
 END.  {Part12}
     `)).toEqual({a: 10});
+});
+
+function semanticAnalyz(program: string){
+    const lexer = new Lexer(program);
+    const parser = new Parser(lexer);
+    const tree = parser.parse(); 
+    const semanticAnalyzer = new SemanticAnalyzer();
+    return semanticAnalyzer.visit(tree);
+}
+
+
+test("Part13 SymTab1", () => {
+    expect(()=>semanticAnalyz(`
+program SymTab1;
+    var x, y : integer;
+
+begin
+
+end.
+    `)).not.toThrow();
+});
+
+test("Part13 SymTab4", () => {
+    expect(()=>semanticAnalyz(`
+program SymTab4;
+    var x, y : integer;
+
+begin
+    x := x + y;
+end.
+    `)).not.toThrow();
+});
+
+test("Part13 SymTab5", () => {
+    expect(()=>semanticAnalyz(`
+program SymTab5;
+    var x : integer;
+
+begin
+    x := y;
+end.
+    `)).toThrow();
+});
+
+test("Part13 SymTab6", () => {
+    expect(()=>semanticAnalyz(`
+program SymTab6;
+    var x, y : integer;
+    var y : real;
+begin
+    x := x + y;
+end.
+    `)).toThrow();
 });

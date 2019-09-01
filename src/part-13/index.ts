@@ -16,11 +16,9 @@ export function part13(program: string){
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
     const tree = parser.parse(); 
-    const symtabBuilder = new SymbolTableBuilder();
-    console.debug("");
-    console.debug("Symbol Table contents:");
-    console.debug(symtabBuilder.symtab);
-    symtabBuilder.visit(tree);
+    const semanticAnalyzer = new SemanticAnalyzer();
+    console.debug(semanticAnalyzer);
+    semanticAnalyzer.visit(tree);
 
     const interpreter  = new Interpreter();
     const result = interpreter.interpret(tree);
@@ -169,7 +167,7 @@ class Token{
     }
 }
 
-class Lexer{
+export class Lexer{
     private pos = 0;
     private currentChar: string | undefined = this.text[this.pos];
     private RESERVED_KEYWORDS = {
@@ -331,7 +329,7 @@ class Lexer{
             this.advance();
         }
         //@ts-ignore
-        const token = this.RESERVED_KEYWORDS[result] as Token;
+        const token = this.RESERVED_KEYWORDS[result.toUpperCase()] as Token;
         if(token){
             return token;
         }else{
@@ -340,7 +338,7 @@ class Lexer{
     }
 }
 
-class Parser{
+export class Parser{
     
     private currentToken: Token = new Token("STARTER", undefined);
     
@@ -571,16 +569,23 @@ class MySymbol{
 }
 
 class BuiltinTypeSymbol extends MySymbol{
-    
+    className = "BuiltinTypeSymbol";
+    constructor(public name: string){
+        super(name);
+    }
+    toString(){
+        return `<{${this.className}}(name='${this.name}')>`;
+    }
 }
 
 class VarSymbol extends MySymbol{
+    className = "VarSymbol";
     constructor(name: string, type: Symbol){
         super(name, type);
     }
 
     toString(){
-        return `<${this.name}:${this.type}>`;
+        return `<{${this.className}}(name='${this.name}, type=${this.type}')>`;
     }
 }
 
@@ -590,11 +595,11 @@ class SymbolTable {
     } = {};
 
     constructor(){
-        this.define(new BuiltinTypeSymbol(INTEGER));
-        this.define(new BuiltinTypeSymbol(REAL));
+        this.insert(new BuiltinTypeSymbol(INTEGER));
+        this.insert(new BuiltinTypeSymbol(REAL));
     }
 
-    define(symbol: MySymbol){
+    insert(symbol: MySymbol){
         console.debug(`Define: ${symbol}`);
         this.symbols[symbol.name] = symbol;
     }
@@ -606,12 +611,12 @@ class SymbolTable {
     }
 
     toString(){
-        const values: MySymbol[] = [];
+        const symtabHeader = "Symbol table contents";
+        const lines = ["\n", symtabHeader, symtabHeader.split("").map(item=>"_").join(""), "\n"];
         for(let key in this.symbols){
-            values.push(this.symbols[key] as MySymbol);
+            lines.push(`${key}: ${this.symbols[key]}`);
         }
-        const s = `Symbols: ${values.join(",")}`;
-        return s;
+        return lines.join("\n");
     }
 }
 
@@ -684,7 +689,7 @@ abstract class NodeVisitor{
     }
 }
 
-class SymbolTableBuilder extends NodeVisitor{
+export class SemanticAnalyzer extends NodeVisitor{
 
     symtab = new SymbolTable();
 
@@ -705,7 +710,10 @@ class SymbolTableBuilder extends NodeVisitor{
         const varName = node.varNode.value;
         // @ts-ignore
         const varSymbol = new VarSymbol(varName, typeSymbol);
-        this.symtab.define(varSymbol);
+        if(this.symtab.lookup(varSymbol) !== undefined){
+            throw new Error(`Error: Duplicate identifier '${varName}' found`);
+        }
+        this.symtab.insert(varSymbol);
     }
 
     visitType(node: Type){
@@ -737,7 +745,7 @@ class SymbolTableBuilder extends NodeVisitor{
         const varName = node.value;
         const varSymbol = this.symtab.lookup(varName);
         if(varSymbol === undefined){
-            throw new Error(`name not found for "${varName}"`);
+            throw new Error(`Error: Symbol(identifier) not found "${varName}"`);
         }
     }
 
