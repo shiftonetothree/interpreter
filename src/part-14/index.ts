@@ -17,7 +17,6 @@ export function part14(program: string){
     const parser = new Parser(lexer);
     const tree = parser.parse(); 
     const semanticAnalyzer = new SemanticAnalyzer();
-    console.debug(semanticAnalyzer);
     semanticAnalyzer.visit(tree);
 
     const interpreter  = new Interpreter();
@@ -92,7 +91,7 @@ class Program extends AST{
 }
 
 class Block extends AST{
-    constructor(public declarations: VarDecl[], public compoundStatement: Compound){
+    constructor(public declarations: (VarDecl | ProcedureDecl)[], public compoundStatement: Compound){
         super();
     }
 }
@@ -104,7 +103,13 @@ class VarDecl extends AST{
 }
 
 class ProcedureDecl extends AST{
-    constructor(public procName: string, public blockNode: Block){
+    constructor(public procName: string,public params: Param[], public blockNode: Block){
+        super();
+    }
+}
+
+class Param extends AST{
+    constructor(public varNode: Var, public typeNode: Type){
         super();
     }
 }
@@ -449,28 +454,67 @@ export class Parser{
     }
 
     declarations(){
-        let declarations: VarDecl[] = [];
-        if(this.currentToken.type === VAR){
-            this.eat(VAR);
-            // @ts-ignore
-            while (this.currentToken.type === ID){
-                const varDecl = this.variableDeclaration();
-                declarations = declarations.concat(varDecl);
+        let declarations: (VarDecl | ProcedureDecl)[] = [];
+        while(true){
+            if(this.currentToken.type === VAR){
+                this.eat(VAR);
+                // @ts-ignore this.currentToken will change after this.eat(VAR);
+                while (this.currentToken.type === ID){
+                    const varDecl = this.variableDeclaration();
+                    declarations = declarations.concat(varDecl);
+                    this.eat(SEMI);
+                };
+            }else if(this.currentToken.type === PROCEDURE){
+                this.eat(PROCEDURE);
+                const procName = this.currentToken.value;
+                this.eat(ID);
+                let params = this.formalParameterList();
                 this.eat(SEMI);
-            };
-        }
-        while (this.currentToken.type === PROCEDURE){
-            this.eat(PROCEDURE);
-            const procName = this.currentToken.value;
-            this.eat(ID);
-            this.eat(SEMI);
-            const blockNode= this.block();
-            // @ts-ignore
-            const procDecl = new ProcedureDecl(procName,blockNode);
-            declarations.push(procDecl);
-            this.eat(SEMI);
+                const blockNode= this.block();
+                // @ts-ignore
+                const procDecl: ProcedureDecl = new ProcedureDecl(procName, params, blockNode);
+                declarations.push(procDecl);
+                this.eat(SEMI);
+            }else{
+                break;
+            }
         }
         return declarations;
+    }
+
+    formalParameterList(){
+        let declarations: VarDecl[] = [];
+        if(this.currentToken.type === LPAREN){
+            this.eat(LPAREN);
+            // @ts-ignore this.currentToken will change after this.eat(VAR);
+            while (this.currentToken.type === ID){
+                const varDecl = this.formalParameters();
+                declarations = declarations.concat(varDecl);
+                // @ts-ignore
+                if(this.currentToken.type === RPAREN){
+                    break;
+                }
+            };
+            this.eat(RPAREN);
+        }
+        return declarations;
+    }
+
+    formalParameters(){
+        const varNodes= [new Var(this.currentToken)];
+        this.eat(ID);
+        while (this.currentToken.type === COMMA){
+            this.eat(COMMA);
+            varNodes.push(new Var(this.currentToken));
+            this.eat(ID);
+        }
+
+        this.eat(COLON);
+
+        const typeNode = this.typeSpec();
+
+        const variableDeclarations = varNodes.map(varNode=>new Param(varNode, typeNode));
+        return variableDeclarations;
     }
 
     variableDeclaration(){
@@ -559,7 +603,7 @@ export class Parser{
 }
 
 class MySymbol{
-    constructor(public name: string,public type?:Symbol){
+    constructor(public name: string,public type?: MySymbol){
 
     }
 
@@ -580,7 +624,7 @@ class BuiltinTypeSymbol extends MySymbol{
 
 class VarSymbol extends MySymbol{
     className = "VarSymbol";
-    constructor(name: string, type: Symbol){
+    constructor(name: string, type: MySymbol){
         super(name, type);
     }
 
@@ -589,12 +633,30 @@ class VarSymbol extends MySymbol{
     }
 }
 
-class SymbolTable {
+class ProcedureSymbol extends MySymbol{
+    className = "ProcedureSymbol";
+    params: VarSymbol[] = [];
+    constructor(name: string, params?: VarSymbol[]){
+        super(name);
+        if(params !== undefined){
+            this.params = params;
+        }
+    }
+
+    toString(){
+        return `<{${this.className}}(name='${this.name}, parameters=${this.params}')>`;
+    }
+}
+
+class ScopedSymbolTable {
     private symbols:{
         [key:string]: MySymbol | undefined;
     } = {};
 
-    constructor(){
+    constructor(
+        public scopeName: string,
+        public scopeLevel: number,
+        public enclosingScope: ScopedSymbolTable | undefined = undefined){
         this.insert(new BuiltinTypeSymbol(INTEGER));
         this.insert(new BuiltinTypeSymbol(REAL));
     }
@@ -604,18 +666,33 @@ class SymbolTable {
         this.symbols[symbol.name] = symbol;
     }
 
-    lookup(name: string){
+    lookup(name: string, currentScopeOnly = false): MySymbol | undefined{
         console.debug(`Lookup: ${name}`);
         const symbol = this.symbols[name];
-        return symbol;
+        if(symbol !== undefined){
+            return symbol;
+        }
+
+        if(currentScopeOnly){
+            return undefined;
+        }
+
+        if(this.enclosingScope !== undefined){
+            return this.enclosingScope.lookup(name);
+        }
     }
 
     toString(){
-        const symtabHeader = "Symbol table contents";
-        const lines = ["\n", symtabHeader, symtabHeader.split("").map(item=>"_").join(""), "\n"];
+        const h1 = "SCOPE (SCOPED SYMBOL TABLE)";
+        const lines = ["\n", h1, h1.split("").map(()=>"=").join(""), "\n"];
+        lines.push(`Scope name: ${this.scopeName}`);
+        const h2 = "Scope (Scoped symbol table) contents";
+        lines.push(h2);
+        lines.push(h2.split("").map(()=>"=").join(""));
         for(let key in this.symbols){
             lines.push(`${key}: ${this.symbols[key]}`);
         }
+        lines.push("\n");
         return lines.join("\n");
     }
 }
@@ -690,11 +767,42 @@ abstract class NodeVisitor{
 }
 
 export class SemanticAnalyzer extends NodeVisitor{
-
-    symtab = new SymbolTable();
+    currentScope = new ScopedSymbolTable("initial", 1);
 
     visitProgram(node: Program){
+        const globalScope = new ScopedSymbolTable("global", 1);
+        this.currentScope = globalScope;
         this.visit(node.block);
+        console.debug(`${globalScope}`);
+        // @ts-ignore
+        this.currentScope = this.currentScope.enclosingScope;
+        console.debug('LEAVE scope: global')
+    }
+
+    visitProcedureDecl(node: ProcedureDecl){
+        const procName = node.procName;
+        const procSymbol = new ProcedureSymbol(procName);
+        this.currentScope.insert(procSymbol);
+        console.debug(`ENTER scope: ${procName}`);
+        const procedureScope = new ScopedSymbolTable(
+            procName,
+            this.currentScope.scopeLevel + 1,
+            this.currentScope
+        );
+        this.currentScope = procedureScope;
+        for(const param of node.params){
+            const paramType = this.currentScope.lookup(param.typeNode.value);
+            const paramName = param.varNode.value;
+            // @ts-ignore
+            const varSymbol: VarSymbol = new VarSymbol(paramName, paramType);
+            this.currentScope.insert(varSymbol);
+            procSymbol.params.push(varSymbol);
+        }
+        this.visit(node.blockNode);
+        console.debug(`${procedureScope}`);
+        // @ts-ignore
+        this.currentScope = this.currentScope.enclosingScope;
+        console.debug(`LEAVE scope: ${procName}`);
     }
 
     visitBlock(node: Block){
@@ -706,14 +814,14 @@ export class SemanticAnalyzer extends NodeVisitor{
 
     visitVarDecl(node: VarDecl){
         const typeName = node.typeNode.value;
-        const typeSymbol = this.symtab.lookup(typeName);
+        const typeSymbol = this.currentScope.lookup(typeName);
         const varName = node.varNode.value;
         // @ts-ignore
-        const varSymbol = new VarSymbol(varName, typeSymbol);
-        if(this.symtab.lookup(varSymbol) !== undefined){
+        const varSymbol: VarSymbol = new VarSymbol(varName, typeSymbol);
+        if(this.currentScope.lookup(varName, true) !== undefined){
             throw new Error(`Error: Duplicate identifier '${varName}' found`);
         }
-        this.symtab.insert(varSymbol);
+        this.currentScope.insert(varSymbol);
     }
 
     visitType(node: Type){
@@ -730,7 +838,7 @@ export class SemanticAnalyzer extends NodeVisitor{
 
     visitAssign(node: Assign){
         const varName = node.left.value;
-        const varSymbol = this.symtab.lookup(varName);
+        const varSymbol = this.currentScope.lookup(varName);
         if(varSymbol === undefined){
             throw new Error(`name not found for "${varName}"`);
         }
@@ -743,7 +851,7 @@ export class SemanticAnalyzer extends NodeVisitor{
 
     visitVar(node: Var){
         const varName = node.value;
-        const varSymbol = this.symtab.lookup(varName);
+        const varSymbol = this.currentScope.lookup(varName);
         if(varSymbol === undefined){
             throw new Error(`Error: Symbol(identifier) not found "${varName}"`);
         }

@@ -149,3 +149,94 @@ begin
 end.
     `)).toThrow();
 });
+
+test("Part14 Main", () => {
+    expect(()=>semanticAnalyz(`
+program Main;
+    var x, y: real;
+
+    procedure Alpha(a : integer);
+       var y : integer;
+    begin
+       x := a + x + y;
+    end;
+ 
+begin { Main }
+ 
+end.  { Main }
+    `)).not.toThrow();
+});
+
+test("Part14 error", () => {
+    expect(()=>semanticAnalyz(`
+program Main;
+    var x, y: real;
+ 
+    procedure Alpha(a : integer);
+       var y : integer;
+    begin
+       x := b + x + y; { ERROR here! }
+    end;
+ 
+begin { Main }
+ 
+end.  { Main }
+    `)).toThrow();
+});
+
+
+
+test("Part14 good", () => {
+    expect(()=>semanticAnalyz(`
+program Main;
+    var b, x, y : real;
+    var z : integer;
+
+    procedure AlphaA(a : integer);
+        var b : integer;
+
+        procedure Beta(c : integer);
+            var y : integer;
+
+            procedure Gamma(c : integer);
+                var x : integer;
+            begin { Gamma }
+                x := a + b + c + x + y + z;
+            end;  { Gamma }
+
+        begin { Beta }
+
+        end;  { Beta }
+
+    begin { AlphaA }
+
+    end;  { AlphaA }
+
+    procedure AlphaB(a : integer);
+        var c : real;
+    begin { AlphaB }
+        c := a + b;
+    end;  { AlphaB }
+
+begin { Main }
+end.  { Main }
+    `)).not.toThrow();
+});
+
+test("Part14 Error 2", () => {
+    expect(()=>semanticAnalyz(`
+program Main;
+    var x, y: real;
+
+    procedure Alpha(a : integer);
+        var y : integer;
+        var a : real;  { ERROR here! }
+    begin
+        x := a + x + y;
+    end;
+
+begin { Main }
+
+end.  { Main }
+    `)).toThrow();
+});
