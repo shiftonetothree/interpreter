@@ -1,6 +1,6 @@
-import { part12 } from "./part-12";
+import { part13 } from "./part-13";
 try{
-    part12(`
+    part13(`
         PROGRAM NameError1;
         VAR
             a : INTEGER;
@@ -14,7 +14,7 @@ try{
 }
 
 try{
-    part12(`
+    part13(`
     PROGRAM NameError2;
     VAR
         b : INTEGER;
@@ -29,7 +29,7 @@ try{
 }
 
 try{
-    part12(`
+    part13(`
     PROGRAM Part11;
     VAR
        number : INTEGER;
@@ -48,7 +48,7 @@ try{
 }
 
 try{
-    part12(`
+    part13(`
     PROGRAM Part11;
     VAR
         x, y : INTEGER;
@@ -62,7 +62,7 @@ try{
 }
 
 try{
-    part12(`
+    part13(`
 PROGRAM Part12;
 VAR
     a : INTEGER;
