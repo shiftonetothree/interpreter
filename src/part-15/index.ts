@@ -1,5 +1,7 @@
 import toRegex from "to-regex";
 
+let _SHOULD_LOG_SCOPE = false;
+
 function isNumber(str: string){
     return toRegex(["0","1","2","3","4","5","6","7","8","9"]).test(str);
 }
@@ -12,7 +14,8 @@ function isAlphabet(str: string){
 function isSpace(str: string){
     return toRegex([" ","\n","\r"]).test(str);
 }
-export function part15(program: string){
+export function part15(program: string, scope = false){
+    _SHOULD_LOG_SCOPE = scope;
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
     const tree = parser.parse(); 
@@ -28,57 +31,96 @@ export function part15(program: string){
     return result;
 }
 
-const INTEGER = "INTEGER";
-const PLUS = "PLUS";
-const MINUS = "MINUS";
-const MUL = "MUL";
+// single-character token types
+const PLUS = "+";
+const MINUS = "-";
+const MUL = "*";
+const SEMI = ";";
+const DOT = ".";
 const LPAREN = "(";
 const RPAREN = ")";
-const EOF = "EOF";
-const STARTER = "STARTER";
+const COLON = ":";
+const COMMA = ",";
+const FLOAT_DIV = "/";
+
+// block of reserved words
 const BEGIN = "BEGIN";
-const END = "END";
-const ID = "ID";
-const ASSIGN = "ASSIGN";
-const SEMI = "SEMI";
-const DOT = "DOT";
+const INTEGER = "INTEGER";
+const INTEGER_DIV = "DIV";
 const PROGRAM = "PROGRAM";
 const PROCEDURE = "PROCEDURE";
 const VAR = "VAR";
-const INTEGER_DIV = "INTEGER_DIV";
 const REAL = "REAL";
+const END = "END";
+
+// misc
+const ID = "ID";
 const INTEGER_CONST = "INTEGER_CONST";
 const REAL_CONST = "REAL_CONST";
-const COLON = "COLON";
-const COMMA = "COMMA";
-const FLOAT_DIV = "FLOAT_DIV";
+const ASSIGN = ":=";
+const EOF = "EOF";
 
 
-type TokenType = 
-"INTEGER"
-|"PLUS"
-|"MINUS"
-|"MUL"
-|"("
-|")"
-|"EOF"
-|"STARTER"
-|"BEGIN"
-|"END"
-|"ID"
-|"ASSIGN"
-|"SEMI"
-|"DOT"
-|"PROGRAM"
-|"VAR"
-|"INTEGER_DIV"
-|"REAL"
-|"INTEGER_CONST"
-|"REAL_CONST"
-|"COLON"
-|"COMMA"
-|"FLOAT_DIV"
-|"PROCEDURE";
+const tokenTuple = [
+    // single-character token types
+    PLUS,
+    MINUS,
+    MUL,
+    LPAREN,
+    RPAREN,
+    COLON,
+    COMMA,
+    SEMI,
+    DOT,
+
+    // block of reserved words
+    BEGIN,
+    INTEGER,
+    INTEGER_DIV,
+    PROGRAM,
+    PROCEDURE,
+    VAR,
+    REAL,
+    END,
+
+    // misc
+    ID,
+    INTEGER_CONST,
+    REAL_CONST,
+    FLOAT_DIV,
+    ASSIGN,
+    EOF,
+] as const;
+
+type TokenType = (typeof tokenTuple)[number];
+
+enum ErrorCode{
+    UNEXPECTED_TOKEN = "Unexpected token",
+    ID_NOT_FOUND = "Identifier not found",
+    DUPLICATE_ID = "Duplicate id found"
+}
+
+class MyError extends Error{
+    className = "MyError";
+    constructor(public errorCode?: ErrorCode,public token?: Token,message?:string){
+        super();
+        this.message = `${this.className}: ${message}`;
+    }
+}
+
+class LexerError extends MyError{
+    className = "LexerError";
+}
+
+class ParserError extends MyError{
+    className = "ParserError";
+}
+
+class SemanticError extends MyError{
+    className = "SemanticError";
+}
+
+
 
 class AST{
 
@@ -164,26 +206,32 @@ class Num extends AST{
 }
 
 class Token{
-    constructor(public type: TokenType, public value: string|undefined|number){
-
+    constructor(
+        public type: TokenType, 
+        public value: string | undefined | number,
+        public lineno?: number,
+        public column?: number,
+        ){
     }
     toString(){
-        return `Token(${this.type}, ${this.value})`;
+        return `Token(${this.type}, ${this.value}, positoin=${this.lineno}:${this.column})`;
     }
 }
 
 export class Lexer{
     private pos = 0;
     private currentChar: string | undefined = this.text[this.pos];
-    private RESERVED_KEYWORDS = {
-        "PROGRAM": new Token(PROGRAM, "PROGRAM"),
-        "VAR": new Token(VAR, "VAR"),
-        "DIV": new Token(INTEGER_DIV, "DIV"),
-        "INTEGER": new Token(INTEGER, "INTEGER"),
-        "REAL": new Token(REAL, "REAL"),
-        "BEGIN": new Token(BEGIN,"BEGIN"),
-        "END": new Token(END,"END"),
-        "PROCEDURE": new Token(PROCEDURE,"PROCEDURE"),
+    private lineno = 1;
+    private column = 1;
+    private readonly RESERVED_KEYWORDS = {
+        [BEGIN]: new Token(BEGIN,BEGIN),
+        [PROGRAM]: new Token(PROGRAM, PROGRAM),
+        [VAR]: new Token(VAR, VAR),
+        [INTEGER_DIV]: new Token(INTEGER_DIV, INTEGER_DIV),
+        [INTEGER]: new Token(INTEGER, INTEGER),
+        [REAL]: new Token(REAL, REAL),
+        [PROCEDURE]: new Token(PROCEDURE,PROCEDURE),
+        [END]: new Token(END,END),
     }
     
     constructor(private text: string){
@@ -204,61 +252,32 @@ export class Lexer{
             if (isAlphabet(this.currentChar)){
                 return this.id();
             }
-            if (this.currentChar === ":" && this.peek() === "="){
-                this.advance();
-                this.advance();
-                return new Token(ASSIGN,":=");
-            }
-            if (this.currentChar === ":" && this.peek() !== "="){
-                this.advance();
-                return new Token(COLON,":");
-            }
-            if (this.currentChar === ";"){
-                this.advance();
-                return new Token(SEMI,";");
-            }
-            if (this.currentChar === "."){
-                this.advance();
-                return new Token(DOT,".");
-            }
-            if (this.currentChar === ","){
-                this.advance();
-                return new Token(COMMA,",");
-            }
-            if (this.currentChar === "/"){
-                this.advance();
-                return new Token(FLOAT_DIV,"/");
-            }
             if (isNumber(this.currentChar)){
                 return this.integer();
             }
-            if (this.currentChar === "+"){
+            if (this.currentChar === COLON && this.peek() === "="){
                 this.advance();
-                return new Token(PLUS, this.currentChar);
-            }
-            if (this.currentChar === "-"){
                 this.advance();
-                return new Token(MINUS, this.currentChar);
+                return new Token(ASSIGN, ASSIGN, this.lineno, this.column);
             }
-            if (this.currentChar === "*"){
+            if (this.currentChar === COLON && this.peek() !== "="){
                 this.advance();
-                return new Token(MUL, this.currentChar);
+                return new Token(COLON, COLON, this.lineno, this.column);
             }
-            if (this.currentChar === "/"){
+            // @ts-ignore
+            if(tokenTuple.indexOf(this.currentChar) >= 0){
+                const token = new Token(
+                    this.currentChar as TokenType,
+                    this.currentChar,
+                    this.lineno,
+                    this.column,
+                );
                 this.advance();
-                return new Token(FLOAT_DIV, this.currentChar);
+                return token;
             }
-            if (this.currentChar === "("){
-                this.advance();
-                return new Token(LPAREN, this.currentChar);
-            }
-            if (this.currentChar === ")"){
-                this.advance();
-                return new Token(RPAREN, this.currentChar);
-            }
-            throw new Error(`error at ${this.latestWord()}`);
+            throw this.lexerError();
         }
-        return new Token(EOF, undefined);
+        return new Token(EOF, undefined, this.lineno, this.column);
     }
 
     integer(){
@@ -267,7 +286,7 @@ export class Lexer{
             result += this.currentChar;
             this.advance();
         }
-        if(this.currentChar === "."){
+        if(this.currentChar === DOT){
             result += this.currentChar;
             this.advance();
 
@@ -276,19 +295,24 @@ export class Lexer{
                 this.advance();
             }
 
-            return new Token("REAL_CONST",parseFloat(result));
+            return new Token(REAL_CONST, parseFloat(result), this.lineno, this.column);
         }else{
-            return new Token("INTEGER_CONST",parseInt(result));
+            return new Token(INTEGER_CONST, parseInt(result), this.lineno, this.column);
         }
         
     }
 
     advance(){
+        if(this.currentChar === "\n"){
+            this.lineno += 1;
+            this.column = 0;
+        }
         this.pos ++;
         if(this.pos > this.text.length - 1){
             this.currentChar = undefined;
         }else{
             this.currentChar = this.text[this.pos];
+            this.column += 1;
         }
     }
 
@@ -334,18 +358,26 @@ export class Lexer{
             this.advance();
         }
         //@ts-ignore
-        const token = this.RESERVED_KEYWORDS[result.toUpperCase()] as Token;
+        const token: Token = this.RESERVED_KEYWORDS[result.toUpperCase()];
         if(token){
             return token;
         }else{
-            return new Token(ID, result);
+            return new Token(ID, result, this.lineno, this.column);
         }
+    }
+
+    lexerError(){
+        return new LexerError(
+            undefined,
+            undefined,
+            `Lexer error on '${this.currentChar}' line: ${this.lineno} column: ${this.column}`
+        );
     }
 }
 
 export class Parser{
     
-    private currentToken: Token = new Token("STARTER", undefined);
+    private currentToken: Token;
     
     constructor(private lexer:Lexer){
         this.currentToken = this.lexer.getNextToken();
@@ -355,14 +387,20 @@ export class Parser{
         if(this.currentToken != undefined && this.currentToken.type === type){
             this.currentToken = this.lexer.getNextToken();
         }else{
-            throw new Error(`error at ${this.lexer.latestWord()}`);
+            throw this.parserError(
+                ErrorCode.UNEXPECTED_TOKEN,
+                this.currentToken
+            );
         }
     }
 
     parse(){
         const node = this.program();
         if(this.currentToken.type !== EOF){
-            throw new Error(`error at ${this.lexer.latestWord()}`);
+            throw this.parserError(
+                ErrorCode.UNEXPECTED_TOKEN,
+                this.currentToken
+            );
         }
         return node;
     }
@@ -435,13 +473,10 @@ export class Parser{
             const op = this.currentToken;
             if(op.type === PLUS){
                 this.eat(PLUS);
-                result = new BinOp(result, op, this.term());
             }else if(op.type === MINUS){
                 this.eat(MINUS);
-                result = new BinOp(result, op, this.term());
-            }else{
-                throw new Error(`error at ${this.lexer.latestWord()}`);
             }
+            result = new BinOp(result, op, this.term());
         }
         return result;
     }
@@ -465,21 +500,26 @@ export class Parser{
                     this.eat(SEMI);
                 };
             }else if(this.currentToken.type === PROCEDURE){
-                this.eat(PROCEDURE);
-                const procName = this.currentToken.value;
-                this.eat(ID);
-                let params = this.formalParameterList();
-                this.eat(SEMI);
-                const blockNode= this.block();
-                // @ts-ignore
-                const procDecl: ProcedureDecl = new ProcedureDecl(procName, params, blockNode);
+                const procDecl = this.procedureDeclaration();
                 declarations.push(procDecl);
-                this.eat(SEMI);
             }else{
                 break;
             }
         }
         return declarations;
+    }
+
+    procedureDeclaration(){
+        this.eat(PROCEDURE);
+        const procName = this.currentToken.value;
+        this.eat(ID);
+        let params = this.formalParameterList();
+        this.eat(SEMI);
+        const blockNode= this.block();
+        // @ts-ignore
+        const procDecl: ProcedureDecl = new ProcedureDecl(procName, params, blockNode);
+        this.eat(SEMI);
+        return procDecl;
     }
 
     formalParameterList(){
@@ -563,9 +603,6 @@ export class Parser{
             this.eat(SEMI);
             results.push(this.statement());
         }
-        if(this.currentToken.type === ID){
-            throw new Error(`error at ${this.lexer.latestWord()}`);
-        }
         return results;
     }
 
@@ -573,7 +610,7 @@ export class Parser{
         let node: AST;
         if(this.currentToken.type === BEGIN){
             node = this.compoundStatement();
-        }else if(this.currentToken.type=== "ID"){
+        }else if(this.currentToken.type=== ID){
             node =this.assignmentStatement();
         }else{
             node = this.empty();
@@ -598,6 +635,14 @@ export class Parser{
 
     empty(){
         return new NoOp();
+    }
+
+    parserError(eooroCode: ErrorCode, token: Token){
+        return new ParserError(
+            eooroCode,
+            token,
+            `${eooroCode} -> ${token}`,
+        );
     }
 
 }
@@ -662,12 +707,12 @@ class ScopedSymbolTable {
     }
 
     insert(symbol: MySymbol){
-        console.debug(`Define: ${symbol}`);
+        this.log(`Define: ${symbol}`);
         this.symbols[symbol.name] = symbol;
     }
 
     lookup(name: string, currentScopeOnly = false): MySymbol | undefined{
-        console.debug(`Lookup: ${name}`);
+        this.log(`Lookup: ${name}`);
         const symbol = this.symbols[name];
         if(symbol !== undefined){
             return symbol;
@@ -694,6 +739,12 @@ class ScopedSymbolTable {
         }
         lines.push("\n");
         return lines.join("\n");
+    }
+
+    log(message: any){
+        if(_SHOULD_LOG_SCOPE){
+            console.log(message);
+        }
     }
 }
 
@@ -773,17 +824,17 @@ export class SemanticAnalyzer extends NodeVisitor{
         const globalScope = new ScopedSymbolTable("global", 1);
         this.currentScope = globalScope;
         this.visit(node.block);
-        console.debug(`${globalScope}`);
+        this.log(`${globalScope}`);
         // @ts-ignore
         this.currentScope = this.currentScope.enclosingScope;
-        console.debug('LEAVE scope: global')
+        this.log('LEAVE scope: global')
     }
 
     visitProcedureDecl(node: ProcedureDecl){
         const procName = node.procName;
         const procSymbol = new ProcedureSymbol(procName);
         this.currentScope.insert(procSymbol);
-        console.debug(`ENTER scope: ${procName}`);
+        this.log(`ENTER scope: ${procName}`);
         const procedureScope = new ScopedSymbolTable(
             procName,
             this.currentScope.scopeLevel + 1,
@@ -799,10 +850,10 @@ export class SemanticAnalyzer extends NodeVisitor{
             procSymbol.params.push(varSymbol);
         }
         this.visit(node.blockNode);
-        console.debug(`${procedureScope}`);
+        this.log(`${procedureScope}`);
         // @ts-ignore
         this.currentScope = this.currentScope.enclosingScope;
-        console.debug(`LEAVE scope: ${procName}`);
+        this.log(`LEAVE scope: ${procName}`);
     }
 
     visitBlock(node: Block){
@@ -819,7 +870,10 @@ export class SemanticAnalyzer extends NodeVisitor{
         // @ts-ignore
         const varSymbol: VarSymbol = new VarSymbol(varName, typeSymbol);
         if(this.currentScope.lookup(varName, true) !== undefined){
-            throw new Error(`Error: Duplicate identifier '${varName}' found`);
+            throw this.semanticError(
+                ErrorCode.DUPLICATE_ID,
+                node.varNode.token
+            );
         }
         this.currentScope.insert(varSymbol);
     }
@@ -840,7 +894,10 @@ export class SemanticAnalyzer extends NodeVisitor{
         const varName = node.left.value;
         const varSymbol = this.currentScope.lookup(varName);
         if(varSymbol === undefined){
-            throw new Error(`name not found for "${varName}"`);
+            throw this.semanticError(
+                ErrorCode.ID_NOT_FOUND,
+                node.token
+            );
         }
         this.visit(node.right);
     }
@@ -853,13 +910,30 @@ export class SemanticAnalyzer extends NodeVisitor{
         const varName = node.value;
         const varSymbol = this.currentScope.lookup(varName);
         if(varSymbol === undefined){
-            throw new Error(`Error: Symbol(identifier) not found "${varName}"`);
+            throw this.semanticError(
+                ErrorCode.ID_NOT_FOUND,
+                node.token,
+            );
         }
     }
 
     visitCompound(node: Compound){
         for(const child of node.children){
             this.visit(child);
+        }
+    }
+
+    semanticError(errorCode: ErrorCode, token: Token){
+        return new SemanticError(
+            errorCode,
+            token,
+            `${errorCode} -> ${token}`,
+        );
+    }
+
+    log(message: any){
+        if(_SHOULD_LOG_SCOPE){
+            console.log(message);
         }
     }
 
@@ -922,9 +996,9 @@ class Interpreter extends NodeVisitor{
         if(rightVal === undefined){
             throw new Error("ast错误");
         }
-        if(node.token.type === "PLUS"){
+        if(node.token.type === PLUS){
             return + rightVal;
-        }else if(node.token.type === "MINUS"){
+        }else if(node.token.type === MINUS){
             return - rightVal;
         }else{
             throw new Error("ast错误");
