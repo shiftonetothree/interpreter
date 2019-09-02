@@ -101,23 +101,35 @@ enum ErrorCode{
 }
 
 class MyError extends Error{
-    className = "MyError";
+    name = "MyError";
     constructor(public errorCode?: ErrorCode,public token?: Token,message?:string){
         super();
-        this.message = `${this.className}: ${message}`;
+        this.message = `${this.name}: ${message}`;
     }
 }
 
 class LexerError extends MyError{
-    className = "LexerError";
+    name = "LexerError";
+    constructor(public errorCode?: ErrorCode,public token?: Token,message?:string){
+        super();
+        this.message = `${this.name}: ${message}`;
+    }
 }
 
 class ParserError extends MyError{
-    className = "ParserError";
+    name = "ParserError";
+    constructor(public errorCode?: ErrorCode,public token?: Token,message?:string){
+        super();
+        this.message = `${this.name}: ${message}`;
+    }
 }
 
 class SemanticError extends MyError{
-    className = "SemanticError";
+    name = "SemanticError";
+    constructor(public errorCode?: ErrorCode,public token?: Token,message?:string){
+        super();
+        this.message = `${this.name}: ${message}`;
+    }
 }
 
 
@@ -265,7 +277,7 @@ export class Lexer{
                 return new Token(COLON, COLON, this.lineno, this.column);
             }
             // @ts-ignore
-            if(tokenTuple.indexOf(this.currentChar) >= 0){
+            if(tokenTuple.indexOf(this.currentChar >= 0)){
                 const token = new Token(
                     this.currentChar as TokenType,
                     this.currentChar,
