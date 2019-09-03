@@ -217,6 +217,12 @@ class Num extends AST{
     }
 }
 
+class ProcedureCall extends AST{
+    constructor(public procName: string, public actualParams: AST[], public token: Token){
+        super();
+    }
+}
+
 class Token{
     constructor(
         public type: TokenType, 
@@ -232,7 +238,7 @@ class Token{
 
 export class Lexer{
     private pos = 0;
-    private currentChar: string | undefined = this.text[this.pos];
+    public currentChar: string | undefined = this.text[this.pos];
     private lineno = 1;
     private column = 1;
     private readonly RESERVED_KEYWORDS = {
@@ -622,8 +628,10 @@ export class Parser{
         let node: AST;
         if(this.currentToken.type === BEGIN){
             node = this.compoundStatement();
-        }else if(this.currentToken.type=== ID){
-            node =this.assignmentStatement();
+        }else if(this.currentToken.type === ID && this.lexer.currentChar === LPAREN){
+            node = this.proccallStatement();
+        }else if(this.currentToken.type === ID){
+            node = this.assignmentStatement();
         }else{
             node = this.empty();
         }
@@ -636,6 +644,28 @@ export class Parser{
         this.eat(ASSIGN);
         const right = this.expr();
         const node= new Assign(left,token,right);
+        return node;
+    }
+
+    proccallStatement(){
+        const token = this.currentToken;
+        const procName = this.currentToken.value;
+        this.eat(ID);
+        this.eat(LPAREN);
+        const actualParams:AST[] = [];
+        if(this.currentToken.type !== RPAREN){
+            const node = this.expr();
+            actualParams.push(node);
+        }
+
+        this.eat(RPAREN);
+
+        const node = new ProcedureCall(
+            // @ts-ignore
+            procName,
+            actualParams,
+            token
+        );
         return node;
     }
 
@@ -787,6 +817,8 @@ abstract class NodeVisitor{
             return this.visitNoOp(node);
         }else if(node instanceof ProcedureDecl){
             return this.visitProcedureDecl(node);
+        }else if(node instanceof ProcedureCall){
+            return this.visitProcedureCall(node);
         }else{
             throw new Error("ast错误");
         }
@@ -826,6 +858,10 @@ abstract class NodeVisitor{
     }
 
     visitProcedureDecl(node: ProcedureDecl){
+    }
+
+    visitProcedureCall(node: ProcedureCall){
+
     }
 }
 
@@ -935,6 +971,12 @@ export class SemanticAnalyzer extends NodeVisitor{
         }
     }
 
+    visitProcedureCall(node: ProcedureCall){
+        for(const paramNode of node.actualParams){
+            this.visit(paramNode);
+        }
+    }
+
     semanticError(errorCode: ErrorCode, token: Token){
         return new SemanticError(
             errorCode,
@@ -1041,6 +1083,12 @@ class Interpreter extends NodeVisitor{
     visitCompound(node: Compound){
         for(const child of node.children){
             this.visit(child);
+        }
+    }
+
+    visitProcedureCall(node: ProcedureCall){
+        for(const paramNode of node.actualParams){
+            this.visit(paramNode);
         }
     }
 

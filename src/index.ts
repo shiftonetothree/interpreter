@@ -8,12 +8,19 @@ function semanticAnalyz(program: string){
 }
 try{
     semanticAnalyz(`
-program SymTab6;
-    var x, y : integer;
-    var y : real;
+program Main;
+
+procedure Alpha(a : integer; b : integer);
+var x : integer;
 begin
-    x := x + y;
-end.
+    x := (a + b ) * 2;
+end;
+
+begin { Main }
+
+    Alpha(3 + 5, 7);  { procedure call }
+
+end.  { Main }
     `);
 }catch(e){
     console.error(e);
