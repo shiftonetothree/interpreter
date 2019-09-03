@@ -1,4 +1,4 @@
-import { Lexer, Parser, SemanticAnalyzer } from "./part-17";
+import { Lexer, Parser, SemanticAnalyzer, part17 } from "./part-17";
 function semanticAnalyz(program: string){
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
@@ -7,21 +7,14 @@ function semanticAnalyz(program: string){
     return semanticAnalyzer.visit(tree);
 }
 try{
-    semanticAnalyz(`
-program Main;
-
-procedure Alpha(a : integer; b : integer);
-var x : integer;
-begin
-    x := (a + b ) * 2;
-end;
-
-begin { Main }
-
-    Alpha(3 + 5, 7);  { procedure call }
-
-end.  { Main }
-    `);
+    part17(`
+    program Main;
+    var x, y : integer;
+    begin { Main }
+       y := 7;
+       x := (y + 3) * 3;
+    end.  { Main }
+    `, true, true);
 }catch(e){
     console.error(e);
 }

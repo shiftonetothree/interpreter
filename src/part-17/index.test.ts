@@ -240,3 +240,14 @@ begin { Main }
 end.  { Main }
     `)).toThrow();
 });
+
+test("Part14 Error 2", () => {
+    expect(part17(`
+    program Main;
+    var x, y : integer;
+    begin { Main }
+       y := 7;
+       x := (y + 3) * 3;
+    end.  { Main }
+    `)).toEqual({x: 30, y: 7});
+});

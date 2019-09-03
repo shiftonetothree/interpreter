@@ -2,6 +2,8 @@ import toRegex from "to-regex";
 
 let _SHOULD_LOG_SCOPE = false;
 
+let _SHOULD_LOG_STACK = false;
+
 function isNumber(str: string){
     return toRegex(["0","1","2","3","4","5","6","7","8","9"]).test(str);
 }
@@ -14,8 +16,9 @@ function isAlphabet(str: string){
 function isSpace(str: string){
     return toRegex([" ","\n","\r"]).test(str);
 }
-export function part17(program: string, scope = false){
+export function part17(program: string, scope = false, stack = false){
     _SHOULD_LOG_SCOPE = scope;
+    _SHOULD_LOG_STACK = stack;
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
     const tree = parser.parse(); 
@@ -25,9 +28,6 @@ export function part17(program: string, scope = false){
     const interpreter  = new Interpreter();
     const result = interpreter.interpret(tree);
 
-    console.debug("");
-    console.debug("Run-time GLOBAL_MEMORY contents:");
-    console.debug(result);
     return result;
 }
 
@@ -993,10 +993,61 @@ export class SemanticAnalyzer extends NodeVisitor{
 
 }
 
+
+export class CallStack{
+
+    private records: ActivationRecord[] = [];
+
+    push(ar: ActivationRecord){
+        this.records.push(ar);
+    }
+
+    pop(){
+        return this.records.pop();
+    }
+
+    peek(){
+        return this.records[this.records.length - 1];
+    }
+
+    toString(){
+        let s = this.records.reverse().join("\n");
+        s = `CALL STACK\n${s}\n`;
+        return s;
+    }
+
+}
+
+
+class ActivationRecord{
+    members:{
+        [key: string]: string | number | undefined,
+    } = {};
+    constructor(public name: string, public type: TokenType, public nestingLevel: number){
+    }
+
+    setItem(key:string, value: string|number){
+        this.members[key] = value;
+    }
+
+    getItem(key: string){
+        return this.members[key];
+    }
+
+    toString(){
+        const lines = [`${this.nestingLevel}: ${this.type}, ${this.name}`];
+        for(const key in this.members){
+            lines.push(`    ${key}: ${this.members[key]}`);
+        }
+        const s = lines.join("\n");
+        return s;
+    }
+}
+
 class Interpreter extends NodeVisitor{
-    GLOBAL_SCOPE:{
-        [key: string]: number;
-    } = {}
+    callStack = new CallStack();
+
+    programActivationRecord: ActivationRecord | undefined;
 
     constructor(){
         super();
@@ -1007,7 +1058,21 @@ class Interpreter extends NodeVisitor{
     }
 
     visitProgram(node: Program){
+        const programName = node.name;
+
+        const ar = new ActivationRecord(
+            programName,
+            PROGRAM,
+            1
+        );
+
+        this.callStack.push(ar);
+
         this.visit(node.block);
+
+        this.log(`LEAVE: PROGRAM ${programName}`);
+        this.log(`${this.callStack}`);
+        this.programActivationRecord = ar;
     }
 
     visitBlock(node: Block){
@@ -1061,13 +1126,9 @@ class Interpreter extends NodeVisitor{
 
     visitAssign(node: Assign){
         const varName = node.left.value;
-        const val = this.visit(node.right);
-        if(val === undefined){
-            throw new Error("ast错误");
-        }else{
-            this.GLOBAL_SCOPE[varName] = val;
-        }
-        
+        const valValue = this.visit(node.right);
+        const ar = this.callStack.peek();
+        ar.setItem(varName, valValue);
     }
 
     visitNoOp(node: NoOp){
@@ -1076,7 +1137,8 @@ class Interpreter extends NodeVisitor{
 
     visitVar(node: Var){
         const varName= node.value;
-        const val = this.GLOBAL_SCOPE[varName];
+        const ar = this.callStack.peek();
+        const val = ar.getItem(varName);
         return val;
     }
 
@@ -1094,6 +1156,14 @@ class Interpreter extends NodeVisitor{
 
     interpret(tree: Program){
         this.visit(tree);
-        return this.GLOBAL_SCOPE;
+        if(this.programActivationRecord){
+            return this.programActivationRecord.members;
+        }
+    }
+
+    log(msg: any){
+        if(_SHOULD_LOG_STACK){
+            console.debug(msg);
+        }
     }
 }
