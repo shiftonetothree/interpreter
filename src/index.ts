@@ -1,4 +1,4 @@
-import { Lexer, Parser, SemanticAnalyzer } from "./part-15";
+import { Lexer, Parser, SemanticAnalyzer } from "./part-16";
 function semanticAnalyz(program: string){
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
