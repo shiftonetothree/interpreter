@@ -1024,12 +1024,12 @@ export class CallStack{
 
 class ActivationRecord{
     members:{
-        [key: string]: string | number | undefined,
+        [key: string]: string | number | AST | undefined,
     } = {};
     constructor(public name: string, public type: TokenType, public nestingLevel: number){
     }
 
-    setItem(key:string, value: string|number){
+    setItem(key:string, value: string | number | AST){
         this.members[key] = value;
     }
 
@@ -1071,18 +1071,13 @@ class Interpreter extends NodeVisitor{
 
         this.callStack.push(ar);
 
+        this.log(`ENTER: PROGRAM ${programName}`);
+
         this.visit(node.block);
 
         this.log(`LEAVE: PROGRAM ${programName}`);
         this.log(`${this.callStack}`);
         this.programActivationRecord = ar;
-    }
-
-    visitBlock(node: Block){
-        for(const declaration of node.declarations){
-            this.visit(declaration);
-        }
-        this.visit(node.compoundStatement);
     }
 
     visitVarDecl(node: VarDecl){
@@ -1091,6 +1086,20 @@ class Interpreter extends NodeVisitor{
 
     visitType(node: Type){
 
+    }
+
+    visitProcedureDecl(node: ProcedureDecl){
+        const procName = node.procName;
+        const ar = this.callStack.peek();
+        ar.setItem(procName, node);
+        this.visit(node.blockNode);
+    }
+
+    visitBlock(node: Block){
+        for(const declaration of node.declarations){
+            this.visit(declaration);
+        }
+        this.visit(node.compoundStatement);
     }
 
     visitBinOp(node: BinOp): number{
@@ -1145,15 +1154,26 @@ class Interpreter extends NodeVisitor{
         return val;
     }
 
+    visitProcedureCall(node: ProcedureCall){
+        const procName = node.procName;
+        const ar = this.callStack.peek();
+        // @ts-ignore
+        
+        const proc: AST = ar.getItem(procName);
+        this.log(`ENTER: PROCEDURE ${procName}`);
+        
+        const newAr = new ActivationRecord(procName,PROCEDURE,ar.nestingLevel + 1);
+
+        this.callStack.push(newAr);
+        this.visit(proc);
+        this.callStack.pop();
+
+        this.log(`LEAVE: PROCEDURE ${procName}`);
+    }
+
     visitCompound(node: Compound){
         for(const child of node.children){
             this.visit(child);
-        }
-    }
-
-    visitProcedureCall(node: ProcedureCall){
-        for(const paramNode of node.actualParams){
-            this.visit(paramNode);
         }
     }
 
