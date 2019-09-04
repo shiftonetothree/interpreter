@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test-all": "jest",
+    "test":"jest src/final/index.test.ts"
   },
   "repository": {
     "type": "git",

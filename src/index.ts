@@ -1,4 +1,4 @@
-import { Lexer, Parser, SemanticAnalyzer, part17 } from "./part-17";
+import { Lexer, Parser, SemanticAnalyzer, final } from "./final";
 function semanticAnalyz(program: string){
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
@@ -7,7 +7,7 @@ function semanticAnalyz(program: string){
     return semanticAnalyzer.visit(tree);
 }
 try{
-    part17(`
+    final(`
     program Main;
     var x, y : integer;
     begin { Main }
