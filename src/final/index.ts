@@ -4,6 +4,8 @@ let _SHOULD_LOG_SCOPE = false;
 
 let _SHOULD_LOG_STACK = false;
 
+let _PRGRAM_FILE_PATH = "";
+
 function isNumber(str: string){
     return toRegex(["0","1","2","3","4","5","6","7","8","9"]).test(str);
 }
@@ -16,9 +18,10 @@ function isAlphabet(str: string){
 function isSpace(str: string){
     return toRegex([" ","\n","\r"]).test(str);
 }
-export function final(program: string, scope = false, stack = false){
+export function final(program: string, scope = false, stack = false, path = ""){
     _SHOULD_LOG_SCOPE = scope;
     _SHOULD_LOG_STACK = stack;
+    _PRGRAM_FILE_PATH = path;
     const lexer = new Lexer(program);
     const parser = new Parser(lexer);
     const tree = parser.parse(); 
@@ -232,7 +235,7 @@ class Token{
         ){
     }
     toString(){
-        return `Token(${this.type}, ${this.value}, positoin=${this.lineno}:${this.column})`;
+        return `Token(${this.type}, ${this.value}, at ${_PRGRAM_FILE_PATH}:${this.lineno}:${this.column})`;
     }
 }
 
