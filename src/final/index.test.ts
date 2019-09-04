@@ -5,5 +5,5 @@ test("test-1", () => {
 });
 
 test("test-error-1", () => {
-    expect(()=>cli("src/final/test-error-1.pas")).not.toThrow();
+    expect(()=>cli("src/final/test-error-1.pas")).toThrow();
 });
