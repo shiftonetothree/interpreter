@@ -17,7 +17,7 @@ test("test-4", () => {
 });
 
 test("test-5", () => {
-    expect({... cli("src/final/test-5.pas")}).toEqual({x: 4, y: 4, b: true});
+    expect({... cli("src/final/test-5.pas")}).toEqual({x: 1, y: 0, b: true});
 });
 
 test("test-error-1", () => {

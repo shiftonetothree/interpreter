@@ -32,6 +32,9 @@ export const FLOAT_DIV = "/";
 // block of reserved words
 export const BEGIN = "BEGIN";
 export const INTEGER = "INTEGER";
+export const BOOLEAN = "BOOLEAN";
+export const TRUE = "TRUE";
+export const FALSE = "FALSE";
 export const INTEGER_DIV = "DIV";
 export const PROGRAM = "PROGRAM";
 export const PROCEDURE = "PROCEDURE";
@@ -43,6 +46,7 @@ export const END = "END";
 export const ID = "ID";
 export const INTEGER_CONST = "INTEGER_CONST";
 export const REAL_CONST = "REAL_CONST";
+export const BOOLEAN_CONST = "BOOLEAN_CONST";
 export const ASSIGN = ":=";
 export const EOF = "EOF";
 
@@ -61,18 +65,22 @@ export const tokenTuple = [
 
     // block of reserved words
     BEGIN,
-    INTEGER,
+    REAL,
     INTEGER_DIV,
     PROGRAM,
     PROCEDURE,
     VAR,
-    REAL,
+    INTEGER,
+    BOOLEAN,
+    TRUE,
+    FALSE,
     END,
 
     // misc
     ID,
     INTEGER_CONST,
     REAL_CONST,
+    BOOLEAN_CONST,
     FLOAT_DIV,
     ASSIGN,
     EOF,
@@ -210,6 +218,14 @@ export class Num extends AST{
     }
 }
 
+export class MyBoolean extends AST{
+    value: boolean;
+    constructor(public token: Token){
+        super();
+        this.value = token.value as boolean;
+    }
+}
+
 export class ProcedureCall extends AST{
     constructor(public procName: string, public actualParams: AST[], public token: Token){
         super();
@@ -219,7 +235,7 @@ export class ProcedureCall extends AST{
 export class Token{
     constructor(
         public type: TokenType, 
-        public value: string | undefined | number,
+        public value: string | undefined | number | boolean,
         public lineno?: number,
         public column?: number,
         ){
@@ -241,6 +257,9 @@ export class Lexer{
         [INTEGER_DIV]: new Token(INTEGER_DIV, INTEGER_DIV),
         [INTEGER]: new Token(INTEGER, INTEGER),
         [REAL]: new Token(REAL, REAL),
+        [BOOLEAN]: new Token(BOOLEAN, BOOLEAN),
+        [TRUE]: new Token(BOOLEAN_CONST, true),
+        [FALSE]: new Token(BOOLEAN_CONST, false),
         [PROCEDURE]: new Token(PROCEDURE,PROCEDURE),
         [END]: new Token(END,END),
     }
@@ -443,6 +462,9 @@ export class Parser{
         }else if(currentToken.type === REAL_CONST){
             this.eat(REAL_CONST);
             return new Num(currentToken);
+        }else if (currentToken.type === BOOLEAN_CONST){
+            this.eat(BOOLEAN_CONST);
+            return new MyBoolean(currentToken);
         }else if(this.currentToken.type === LPAREN){
             this.eat(LPAREN);
             const result = this.expr();
@@ -592,8 +614,10 @@ export class Parser{
         const token= this.currentToken;
         if(this.currentToken.type === INTEGER){
             this.eat(INTEGER);
-        }else{
-            this.eat(REAL)
+        }else if(this.currentToken.type === REAL){
+            this.eat(REAL);
+        }else {
+            this.eat(BOOLEAN);
         }
         const node = new Type(token);
         return node;
@@ -798,6 +822,8 @@ export abstract class NodeVisitor{
     visit(node: AST){
         if(node instanceof Num){
             return this.visitNum(node);
+        }else if(node instanceof MyBoolean){
+            return this.visitMyBoolean(node);
         }else if(node instanceof Program){
             return this.visitProgram(node);
         }else if(node instanceof Block){
@@ -828,6 +854,9 @@ export abstract class NodeVisitor{
     }
 
     visitNum(node: Num){
+    }
+
+    visitMyBoolean(node: MyBoolean){
     }
 
     visitProgram(node: Program){

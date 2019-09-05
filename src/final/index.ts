@@ -30,6 +30,7 @@ import {
     FLOAT_DIV,
     INTEGER_DIV,
     PROCEDURE,
+    MyBoolean,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -136,6 +137,10 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitNum(node: Num){
+        return node.value;
+    }
+
+    visitMyBoolean(node: MyBoolean){
         return node.value;
     }
 
