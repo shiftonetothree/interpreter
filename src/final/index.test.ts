@@ -16,6 +16,10 @@ test("test-4", () => {
     expect({... cli("src/final/test-4.pas"), PlusXAndY: undefined}).toEqual({x: 4, y: 4, PlusXAndY: undefined});
 });
 
+test("test-5", () => {
+    expect({... cli("src/final/test-5.pas")}).toEqual({x: 4, y: 4, b: true});
+});
+
 test("test-error-1", () => {
     expect(()=>cli("src/final/test-error-1.pas")).toThrow();
 });

@@ -1,4 +1,6 @@
-import { final, Lexer, SemanticAnalyzer, Parser} from ".";
+import { final } from ".";
+import { Lexer, Parser, SemanticAnalyzer } from "./basic";
+
 
 test("Part10AST", () => {
     expect(final(`
@@ -98,10 +100,10 @@ END.  {Part12}
 });
 
 function semanticAnalyz(program: string){
-    const lexer = new Lexer(program);
+    const lexer = new Lexer(program, "");
     const parser = new Parser(lexer);
     const tree = parser.parse(); 
-    const semanticAnalyzer = new SemanticAnalyzer();
+    const semanticAnalyzer = new SemanticAnalyzer(false);
     return semanticAnalyzer.visit(tree);
 }
 

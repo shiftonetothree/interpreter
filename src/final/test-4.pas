@@ -12,7 +12,7 @@ program Main;
         PlusYAndX(2,3);
     end;
 begin { Main }
-        x := 1;
-        y := 0;
-        PlusXAndY();
+    x := 1;
+    y := 0;
+    PlusXAndY();
 end.  { Main }
