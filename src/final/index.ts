@@ -135,6 +135,13 @@ class SemanticError extends MyError{
     }
 }
 
+class RuntimeError extends MyError{
+    name = "RuntimeError";
+    constructor(public errorCode?: ErrorCode,public token?: Token,message?:string){
+        super();
+        this.message = `${this.name}: ${message}`;
+    }
+}
 
 
 class AST{
@@ -746,7 +753,8 @@ class ScopedSymbolTable {
     constructor(
         public scopeName: string,
         public scopeLevel: number,
-        public enclosingScope: ScopedSymbolTable | undefined = undefined){
+        public enclosingScope: ScopedSymbolTable | undefined = undefined
+    ){
         this.insert(new BuiltinTypeSymbol(INTEGER));
         this.insert(new BuiltinTypeSymbol(REAL));
     }
@@ -1002,6 +1010,11 @@ export class CallStack{
     private records: ActivationRecord[] = [];
 
     push(ar: ActivationRecord){
+        const arNow = this.peek();
+        if(arNow !== undefined){
+            ar.enclosingActivationRecord = arNow;
+            ar.nestingLevel = arNow.nestingLevel + 1;
+        }
         this.records.push(ar);
     }
 
@@ -1026,7 +1039,12 @@ class ActivationRecord{
     members:{
         [key: string]: string | number | AST | undefined,
     } = {};
-    constructor(public name: string, public type: TokenType, public nestingLevel: number){
+    constructor(
+        public name: string, 
+        public type: TokenType, 
+        public nestingLevel: number = 1,
+        public enclosingActivationRecord: ActivationRecord | undefined = undefined
+    ){
     }
 
     setItem(key:string, value: string | number | AST){
@@ -1034,7 +1052,10 @@ class ActivationRecord{
     }
 
     getItem(key: string){
-        return this.members[key];
+        const result = this.members[key];
+        if(result === undefined && this.enclosingActivationRecord !== undefined){
+            return result;
+        }
     }
 
     toString(){
@@ -1106,7 +1127,10 @@ class Interpreter extends NodeVisitor{
         const leftVal = this.visit(node.left);
         const rightVal = this.visit(node.right);
         if(leftVal === undefined || rightVal === undefined){
-            throw new Error("ast错误");
+            throw this.runtimeError(
+                ErrorCode.ID_NOT_FOUND,
+                node.token,
+            );
         }
         if(node.token.type === PLUS){
             return leftVal + rightVal;
@@ -1119,20 +1143,29 @@ class Interpreter extends NodeVisitor{
         }else if(node.token.type === INTEGER_DIV){
             return Math.floor(leftVal / rightVal);
         }else{
-            throw new Error("ast错误");
+            throw this.runtimeError(
+                ErrorCode.UNEXPECTED_TOKEN,
+                node.token,
+            );
         }
     }
     visitUnaryOp(node: UnaryOp): number{
         const rightVal = this.visit(node.right);
         if(rightVal === undefined){
-            throw new Error("ast错误");
+            throw this.runtimeError(
+                ErrorCode.ID_NOT_FOUND,
+                node.token,
+            );
         }
         if(node.token.type === PLUS){
             return + rightVal;
         }else if(node.token.type === MINUS){
             return - rightVal;
         }else{
-            throw new Error("ast错误");
+            throw this.runtimeError(
+                ErrorCode.UNEXPECTED_TOKEN,
+                node.token,
+            );
         }
     }
 
@@ -1156,16 +1189,23 @@ class Interpreter extends NodeVisitor{
 
     visitProcedureCall(node: ProcedureCall){
         const procName = node.procName;
-        const ar = this.callStack.peek();
+        let ar = this.callStack.peek();
         // @ts-ignore
-        
-        const proc: AST = ar.getItem(procName);
+        const proc: ProcedureDecl = ar.getItem(procName);
         this.log(`ENTER: PROCEDURE ${procName}`);
         
-        const newAr = new ActivationRecord(procName,PROCEDURE,ar.nestingLevel + 1);
+        const actualParamValues = [];
+        for(const actualParam of node.actualParams){
+            actualParamValues.push(actualParam);
+        }
 
+        const newAr = new ActivationRecord(procName,PROCEDURE);
         this.callStack.push(newAr);
-        this.visit(proc);
+        ar = this.callStack.peek();
+        for(let i=0;i<proc.params.length;i++){
+            ar.setItem(proc.params[i].varNode.value,actualParamValues[i]);
+        }
+        this.visit(proc.blockNode);
         this.callStack.pop();
 
         this.log(`LEAVE: PROCEDURE ${procName}`);
@@ -1182,6 +1222,14 @@ class Interpreter extends NodeVisitor{
         if(this.programActivationRecord){
             return this.programActivationRecord.members;
         }
+    }
+
+    runtimeError(errorCode: ErrorCode, token: Token){
+        return new RuntimeError(
+            errorCode,
+            token,
+            `${errorCode} -> ${token}`,
+        );
     }
 
     log(msg: any){
