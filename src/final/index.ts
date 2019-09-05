@@ -1047,14 +1047,28 @@ class ActivationRecord{
     ){
     }
 
-    setItem(key:string, value: string | number | AST){
-        this.members[key] = value;
+    declareItem(key: string){
+        this.members[key] = undefined;
     }
 
-    getItem(key: string){
-        const result = this.members[key];
-        if(result === undefined && this.enclosingActivationRecord !== undefined){
-            return result;
+    setItem(key:string, value: string | number | AST){
+        if(this.members.hasOwnProperty(key)){
+            this.members[key] = value;
+        }else if(this.enclosingActivationRecord !== undefined){
+            this.enclosingActivationRecord.setItem(key, value);
+        }else{
+            throw new RuntimeError(ErrorCode.ID_NOT_FOUND);
+        }
+        
+    }
+
+    getItem(key: string): string | number | AST | undefined{
+        if(this.members.hasOwnProperty(key)){
+            return this.members[key];
+        }else if(this.enclosingActivationRecord !== undefined){
+            return this.enclosingActivationRecord.getItem(key);
+        }else{
+            return undefined;
         }
     }
 
@@ -1102,7 +1116,9 @@ class Interpreter extends NodeVisitor{
     }
 
     visitVarDecl(node: VarDecl){
-
+        const varName = node.varNode.value;
+        const ar = this.callStack.peek();
+        ar.declareItem(varName);
     }
 
     visitType(node: Type){
@@ -1112,8 +1128,8 @@ class Interpreter extends NodeVisitor{
     visitProcedureDecl(node: ProcedureDecl){
         const procName = node.procName;
         const ar = this.callStack.peek();
+        ar.declareItem(procName);
         ar.setItem(procName, node);
-        this.visit(node.blockNode);
     }
 
     visitBlock(node: Block){
@@ -1126,12 +1142,6 @@ class Interpreter extends NodeVisitor{
     visitBinOp(node: BinOp): number{
         const leftVal = this.visit(node.left);
         const rightVal = this.visit(node.right);
-        if(leftVal === undefined || rightVal === undefined){
-            throw this.runtimeError(
-                ErrorCode.ID_NOT_FOUND,
-                node.token,
-            );
-        }
         if(node.token.type === PLUS){
             return leftVal + rightVal;
         }else if(node.token.type === MINUS){
@@ -1184,6 +1194,12 @@ class Interpreter extends NodeVisitor{
         const varName= node.value;
         const ar = this.callStack.peek();
         const val = ar.getItem(varName);
+        if(val === undefined){
+            throw this.runtimeError(
+                ErrorCode.ID_NOT_FOUND,
+                node.token
+            );
+        }
         return val;
     }
 
@@ -1203,7 +1219,8 @@ class Interpreter extends NodeVisitor{
         this.callStack.push(newAr);
         ar = this.callStack.peek();
         for(let i=0;i<proc.params.length;i++){
-            ar.setItem(proc.params[i].varNode.value,actualParamValues[i]);
+            ar.declareItem(proc.params[i].varNode.value);
+            ar.setItem(proc.params[i].varNode.value, actualParamValues[i]);
         }
         this.visit(proc.blockNode);
         this.callStack.pop();

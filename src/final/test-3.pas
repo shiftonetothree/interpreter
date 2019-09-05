@@ -8,4 +8,5 @@ end;
 begin { Main }
     x := 1;
     y := 0;
+    PlusXAndY();
 end.  { Main }

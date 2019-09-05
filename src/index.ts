@@ -10,9 +10,14 @@ try{
     final(`
     program Main;
     var x, y : integer;
+    procedure PlusXAndY();
+    begin
+        x := x + 1;
+        y := y + 1;
+    end;
     begin { Main }
-       y := 7;
-       x := (y + 3) * 3;
+        y := 0;
+        x := 1;
     end.  { Main }
     `, true, true);
 }catch(e){
