@@ -561,6 +561,9 @@ export class Parser{
                 // @ts-ignore
                 if(this.currentToken.type === RPAREN){
                     break;
+                // @ts-ignore
+                }else if(this.currentToken.type === SEMI){
+                    this.eat(SEMI);
                 }
             };
             this.eat(RPAREN);
@@ -663,9 +666,15 @@ export class Parser{
         this.eat(ID);
         this.eat(LPAREN);
         const actualParams:AST[] = [];
-        if(this.currentToken.type !== RPAREN){
+        while(this.currentToken.type !== RPAREN){
             const node = this.expr();
             actualParams.push(node);
+            // @ts-ignore
+            if(this.currentToken.type === RPAREN){
+                break;
+            }else if(this.currentToken.type === COMMA){
+                this.eat(COMMA);
+            }
         }
 
         this.eat(RPAREN);
@@ -1210,9 +1219,9 @@ class Interpreter extends NodeVisitor{
         const proc: ProcedureDecl = ar.getItem(procName);
         this.log(`ENTER: PROCEDURE ${procName}`);
         
-        const actualParamValues = [];
+        const actualParamValues: (number|string)[] = [];
         for(const actualParam of node.actualParams){
-            actualParamValues.push(actualParam);
+            actualParamValues.push(this.visit(actualParam));
         }
 
         const newAr = new ActivationRecord(procName,PROCEDURE);
@@ -1223,8 +1232,8 @@ class Interpreter extends NodeVisitor{
             ar.setItem(proc.params[i].varNode.value, actualParamValues[i]);
         }
         this.visit(proc.blockNode);
+        this.log(`${this.callStack}`);
         this.callStack.pop();
-
         this.log(`LEAVE: PROCEDURE ${procName}`);
     }
 
