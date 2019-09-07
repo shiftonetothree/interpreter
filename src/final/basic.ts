@@ -28,6 +28,9 @@ export const RPAREN = ")";
 export const COLON = ":";
 export const COMMA = ",";
 export const FLOAT_DIV = "/";
+export const EQUALS = "=";
+export const GREATER_THAN = ">";
+export const LESS_THAN = "<";
 
 // block of reserved words
 export const BEGIN = "BEGIN";
@@ -50,6 +53,9 @@ export const ID = "ID";
 export const INTEGER_CONST = "INTEGER_CONST";
 export const REAL_CONST = "REAL_CONST";
 export const ASSIGN = ":=";
+export const NOT_EQUALS = "<>";
+export const GREATER_OR_EQUALS_THAN = ">=";
+export const LESS_OR_EQUALS_THAN = "<=";
 export const EOF = "EOF";
 
 
@@ -64,6 +70,9 @@ export const tokenTuple = [
     COMMA,
     SEMI,
     DOT,
+    EQUALS,
+    GREATER_THAN,
+    LESS_THAN,
 
     // block of reserved words
     BEGIN,
@@ -87,6 +96,9 @@ export const tokenTuple = [
     REAL_CONST,
     FLOAT_DIV,
     ASSIGN,
+    GREATER_OR_EQUALS_THAN,
+    LESS_OR_EQUALS_THAN,
+    NOT_EQUALS,
     EOF,
 ] as const;
 
@@ -293,14 +305,25 @@ export class Lexer{
             if (isNumber(this.currentChar)){
                 return this.integer();
             }
-            if (this.currentChar === COLON && this.peek() === "="){
+            if (this.currentChar === COLON && this.peek() === EQUALS){
                 this.advance();
                 this.advance();
                 return new Token(ASSIGN, ASSIGN, this.lineno, this.column);
             }
-            if (this.currentChar === COLON && this.peek() !== "="){
+            if (this.currentChar === GREATER_THAN && this.peek() === EQUALS){
                 this.advance();
-                return new Token(COLON, COLON, this.lineno, this.column);
+                this.advance();
+                return new Token(GREATER_OR_EQUALS_THAN, GREATER_OR_EQUALS_THAN, this.lineno, this.column);
+            }
+            if (this.currentChar === LESS_THAN && this.peek() === EQUALS){
+                this.advance();
+                this.advance();
+                return new Token(LESS_OR_EQUALS_THAN, LESS_OR_EQUALS_THAN, this.lineno, this.column);
+            }
+            if (this.currentChar === LESS_THAN && this.peek() === GREATER_THAN){
+                this.advance();
+                this.advance();
+                return new Token(NOT_EQUALS, NOT_EQUALS, this.lineno, this.column);
             }
             // @ts-ignore
             if(tokenTuple.indexOf(this.currentChar >= 0)){

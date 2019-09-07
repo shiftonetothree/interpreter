@@ -8,6 +8,12 @@ program Main;
     var f3 : boolean;
     var t4 : boolean;
     var f4 : boolean;
+    var t5 : boolean;
+    var f5 : boolean;
+    var t6 : boolean;
+    var f6 : boolean;
+    var t7 : boolean;
+    var f7 : boolean;
 begin { Main }
     x := 1;
     y := 0;
@@ -19,4 +25,6 @@ begin { Main }
     f3 := t1 or f1 and f2;
     t4 := t1 or f1 and t2 or f2;
     f4 := not (t1 or (f1 and t2)) or f2;
+    t5 := 1 = 1;
+    f5 := x <> 1;
 end.  { Main }
