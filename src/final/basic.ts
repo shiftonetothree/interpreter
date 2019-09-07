@@ -35,6 +35,9 @@ export const INTEGER = "INTEGER";
 export const BOOLEAN = "BOOLEAN";
 export const TRUE = "TRUE";
 export const FALSE = "FALSE";
+export const AND = "AND";
+export const OR = "OR";
+export const NOT = "NOT";
 export const INTEGER_DIV = "DIV";
 export const PROGRAM = "PROGRAM";
 export const PROCEDURE = "PROCEDURE";
@@ -46,7 +49,6 @@ export const END = "END";
 export const ID = "ID";
 export const INTEGER_CONST = "INTEGER_CONST";
 export const REAL_CONST = "REAL_CONST";
-export const BOOLEAN_CONST = "BOOLEAN_CONST";
 export const ASSIGN = ":=";
 export const EOF = "EOF";
 
@@ -74,13 +76,15 @@ export const tokenTuple = [
     BOOLEAN,
     TRUE,
     FALSE,
+    AND,
+    OR,
+    NOT,
     END,
 
     // misc
     ID,
     INTEGER_CONST,
     REAL_CONST,
-    BOOLEAN_CONST,
     FLOAT_DIV,
     ASSIGN,
     EOF,
@@ -91,6 +95,7 @@ export type TokenType = (typeof tokenTuple)[number];
 export enum ErrorCode{
     UNEXPECTED_TOKEN = "Unexpected token",
     ID_NOT_FOUND = "Identifier not found",
+    VARIABLE_NOT_INITIALIZED = "Variable not initialized",
     DUPLICATE_ID = "Duplicate id found"
 }
 
@@ -258,8 +263,11 @@ export class Lexer{
         [INTEGER]: new Token(INTEGER, INTEGER),
         [REAL]: new Token(REAL, REAL),
         [BOOLEAN]: new Token(BOOLEAN, BOOLEAN),
-        [TRUE]: new Token(BOOLEAN_CONST, true),
-        [FALSE]: new Token(BOOLEAN_CONST, false),
+        [TRUE]: new Token(TRUE, true),
+        [FALSE]: new Token(FALSE, false),
+        [AND]: new Token(AND, AND),
+        [OR]: new Token(OR, OR),
+        [NOT]: new Token(NOT, NOT),
         [PROCEDURE]: new Token(PROCEDURE,PROCEDURE),
         [END]: new Token(END,END),
     }
@@ -456,14 +464,20 @@ export class Parser{
         }else if(currentToken.type === MINUS){
             this.eat(MINUS);
             return new UnaryOp(currentToken, this.factor());
+        }else if(currentToken.type === NOT){
+            this.eat(NOT);
+            return new UnaryOp(currentToken, this.factor());
         }else if(currentToken.type === INTEGER_CONST){
             this.eat(INTEGER_CONST);
             return new Num(currentToken);
         }else if(currentToken.type === REAL_CONST){
             this.eat(REAL_CONST);
             return new Num(currentToken);
-        }else if (currentToken.type === BOOLEAN_CONST){
-            this.eat(BOOLEAN_CONST);
+        }else if (currentToken.type === TRUE){
+            this.eat(TRUE);
+            return new MyBoolean(currentToken);
+        }else if (currentToken.type === FALSE){
+            this.eat(FALSE);
             return new MyBoolean(currentToken);
         }else if(this.currentToken.type === LPAREN){
             this.eat(LPAREN);
@@ -502,12 +516,21 @@ export class Parser{
         const left = this.term();
         let result = left;
 
-        while(this.currentToken.type === PLUS || this.currentToken.type === MINUS ){
+        while(
+            this.currentToken.type === PLUS 
+            || this.currentToken.type === MINUS
+            || this.currentToken.type === AND
+            || this.currentToken.type === OR
+        ){
             const op = this.currentToken;
             if(op.type === PLUS){
                 this.eat(PLUS);
             }else if(op.type === MINUS){
                 this.eat(MINUS);
+            }else if(op.type === AND){
+                this.eat(AND);
+            }else if(op.type === OR){
+                this.eat(OR);
             }
             result = new BinOp(result, op, this.term());
         }

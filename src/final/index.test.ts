@@ -17,7 +17,18 @@ test("test-4", () => {
 });
 
 test("test-5", () => {
-    expect({... cli("src/final/test-5.pas")}).toEqual({x: 1, y: 0, b: true});
+    expect({... cli("src/final/test-5.pas")}).toEqual({
+        x: 1, 
+        y: 0, 
+        t1: true,
+        t2: true,
+        t3: true,
+        t4: true,
+        f1: false,
+        f2: false,
+        f3: false,
+        f4: false,
+    });
 });
 
 test("test-error-1", () => {

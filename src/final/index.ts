@@ -31,6 +31,9 @@ import {
     INTEGER_DIV,
     PROCEDURE,
     MyBoolean,
+    NOT,
+    OR,
+    AND,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -112,7 +115,17 @@ class ActivationRecord{
         }else if(this.enclosingActivationRecord !== undefined){
             return this.enclosingActivationRecord.getItem(key);
         }else{
-            return undefined;
+            return new RuntimeError(ErrorCode.ID_NOT_FOUND);
+        }
+    }
+
+    hasItem(key: string): boolean{
+        if(this.members.hasOwnProperty(key)){
+            return true;
+        }else if(this.enclosingActivationRecord !== undefined){
+            return this.enclosingActivationRecord.hasItem(key);
+        }else{
+            return false;
         }
     }
 
@@ -201,6 +214,10 @@ export class Interpreter extends NodeVisitor{
             return leftVal / rightVal;
         }else if(node.token.type === INTEGER_DIV){
             return Math.floor(leftVal / rightVal);
+        }else if(node.token.type === AND){
+            return leftVal && rightVal;
+        }else if(node.token.type === OR){
+            return leftVal || rightVal;
         }else{
             throw this.runtimeError(
                 ErrorCode.UNEXPECTED_TOKEN,
@@ -208,7 +225,7 @@ export class Interpreter extends NodeVisitor{
             );
         }
     }
-    visitUnaryOp(node: UnaryOp): number{
+    visitUnaryOp(node: UnaryOp): number | boolean{
         const rightVal = this.visit(node.right);
         if(rightVal === undefined){
             throw this.runtimeError(
@@ -220,6 +237,8 @@ export class Interpreter extends NodeVisitor{
             return + rightVal;
         }else if(node.token.type === MINUS){
             return - rightVal;
+        }else if(node.token.type === NOT){
+            return !rightVal;
         }else{
             throw this.runtimeError(
                 ErrorCode.UNEXPECTED_TOKEN,
@@ -242,14 +261,20 @@ export class Interpreter extends NodeVisitor{
     visitVar(node: Var){
         const varName= node.value;
         const ar = this.callStack.peek();
-        const val = ar.getItem(varName);
-        if(val === undefined){
-            throw this.runtimeError(
-                ErrorCode.ID_NOT_FOUND,
-                node.token
-            );
+        if(ar.hasItem(varName)){
+            const val = ar.getItem(varName);
+            if(val === undefined){
+                throw this.runtimeError(
+                    ErrorCode.VARIABLE_NOT_INITIALIZED,
+                    node.token,
+                );
+            }
+            return val;
         }
-        return val;
+        throw this.runtimeError(
+            ErrorCode.ID_NOT_FOUND,
+            node.token
+        );
     }
 
     visitProcedureCall(node: ProcedureCall){
