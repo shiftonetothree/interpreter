@@ -1,30 +1,10 @@
-import { Lexer, Parser, SemanticAnalyzer, final } from "./final";
-function semanticAnalyz(program: string){
-    const lexer = new Lexer(program);
-    const parser = new Parser(lexer);
-    const tree = parser.parse(); 
-    const semanticAnalyzer = new SemanticAnalyzer();
-    return semanticAnalyzer.visit(tree);
-}
+import { final } from "./final";
 try{
     final(`
     program Main;
-    var x, y : integer;
-    procedure PlusXAndY();
-        procedure PlusYAndX(a: integer; b: integer);
-        begin
-            x := x + a;
-            y := y + b;
-        end;
-    begin
-        x := x + 1;
-        y := y + 1;
-        PlusYAndX(2,3);
-    end;
+    var f5 : boolean;
 begin { Main }
-        x := 1;
-        y := 0;
-        PlusXAndY();
+    f5 := not(1 + 2 < 3) and (1 < 2 or 3 * 2 > 4);
 end.  { Main }
     `, true, true);
 }catch(e){

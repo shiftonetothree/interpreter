@@ -479,17 +479,17 @@ export class Parser{
 
     
 
-    factor(): AST{
+    precedence1(): AST{
         const currentToken = this.currentToken;
         if(currentToken.type === PLUS){
             this.eat(PLUS);
-            return new UnaryOp(currentToken, this.factor());
+            return new UnaryOp(currentToken, this.precedence1());
         }else if(currentToken.type === MINUS){
             this.eat(MINUS);
-            return new UnaryOp(currentToken, this.factor());
+            return new UnaryOp(currentToken, this.precedence1());
         }else if(currentToken.type === NOT){
             this.eat(NOT);
-            return new UnaryOp(currentToken, this.factor());
+            return new UnaryOp(currentToken, this.precedence1());
         }else if(currentToken.type === INTEGER_CONST){
             this.eat(INTEGER_CONST);
             return new Num(currentToken);
@@ -512,52 +512,57 @@ export class Parser{
         }
     }
 
-    term(){
-        const left = this.factor();
+    precedence2(){
+        const left = this.precedence1();
         let result = left;
 
         while(this.currentToken.type === MUL 
                 || this.currentToken.type === INTEGER_DIV 
                 || this.currentToken.type === FLOAT_DIV
+                || this.currentToken.type === AND
             ){
             const op = this.currentToken;
-            if(op.type === MUL){
-                this.eat(MUL);
-                result = new BinOp(result, op, this.factor());
-            }else if(op.type === INTEGER_DIV){
-                this.eat(INTEGER_DIV);
-                result = new BinOp(result, op, this.factor());
-            }else if(op.type === FLOAT_DIV){
-                this.eat(FLOAT_DIV);
-                result = new BinOp(result, op, this.factor());
-            }
+            this.eat(op.type);
+            result = new BinOp(result, op, this.precedence1());
         }
         return result;      
     }
 
-    expr(){
-        const left = this.term();
+    precedence3(){
+        const left = this.precedence2();
         let result = left;
-
         while(
             this.currentToken.type === PLUS 
             || this.currentToken.type === MINUS
-            || this.currentToken.type === AND
             || this.currentToken.type === OR
         ){
             const op = this.currentToken;
-            if(op.type === PLUS){
-                this.eat(PLUS);
-            }else if(op.type === MINUS){
-                this.eat(MINUS);
-            }else if(op.type === AND){
-                this.eat(AND);
-            }else if(op.type === OR){
-                this.eat(OR);
-            }
-            result = new BinOp(result, op, this.term());
+            this.eat(op.type);
+            result = new BinOp(result, op, this.precedence2());
         }
         return result;
+    }
+
+    precedence4(){
+        const left = this.precedence3();
+        let result = left;
+        while(
+            this.currentToken.type === EQUALS
+            || this.currentToken.type === GREATER_THAN
+            || this.currentToken.type === GREATER_OR_EQUALS_THAN
+            || this.currentToken.type === LESS_THAN
+            || this.currentToken.type === LESS_OR_EQUALS_THAN
+            || this.currentToken.type === NOT_EQUALS
+        ){
+            const op = this.currentToken;
+            this.eat(op.type);
+            result = new BinOp(result, op, this.precedence3());
+        }
+        return result;
+    }
+
+    expr(){
+        return this.precedence4();
     }
 
     block(){

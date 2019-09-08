@@ -22,9 +22,13 @@ begin { Main }
     t2 := not f1;
     f2 := t1 and false;
     t3 := t2 or f2;
-    f3 := t1 or f1 and f2;
+    f3 := (t1 or f1) and f2;
     t4 := t1 or f1 and t2 or f2;
     f4 := not (t1 or (f1 and t2)) or f2;
     t5 := 1 = 1;
     f5 := x <> 1;
+    t6 := (1 + 2 <= 3) or t5;
+    f6 := (1 + 2 <= 3 * 1) and f5;
+    t7 := not(1 + 2 < 3) and (1 < 2) or (3 * 2 > 4);
+    f7 := not(1 + 2 < 3) or -1 * 2 + 3 > 4 * 5 - 2 * 3;
 end.  { Main }

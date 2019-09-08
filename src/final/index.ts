@@ -34,6 +34,12 @@ import {
     NOT,
     OR,
     AND,
+    EQUALS,
+    NOT_EQUALS,
+    GREATER_THAN,
+    GREATER_OR_EQUALS_THAN,
+    LESS_OR_EQUALS_THAN,
+    LESS_THAN,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -201,7 +207,7 @@ export class Interpreter extends NodeVisitor{
         this.visit(node.compoundStatement);
     }
 
-    visitBinOp(node: BinOp): number{
+    visitBinOp(node: BinOp): number | boolean{
         const leftVal = this.visit(node.left);
         const rightVal = this.visit(node.right);
         if(node.token.type === PLUS){
@@ -218,6 +224,18 @@ export class Interpreter extends NodeVisitor{
             return leftVal && rightVal;
         }else if(node.token.type === OR){
             return leftVal || rightVal;
+        }else if(node.token.type === EQUALS){
+            return leftVal === rightVal;
+        }else if(node.token.type === NOT_EQUALS){
+            return leftVal !== rightVal;
+        }else if(node.token.type === GREATER_THAN){
+            return leftVal > rightVal;
+        }else if(node.token.type === GREATER_OR_EQUALS_THAN){
+            return leftVal >= rightVal;
+        }else if(node.token.type === LESS_THAN){
+            return leftVal < rightVal;
+        }else if(node.token.type === LESS_OR_EQUALS_THAN){
+            return leftVal <= rightVal;
         }else{
             throw this.runtimeError(
                 ErrorCode.UNEXPECTED_TOKEN,

@@ -24,10 +24,16 @@ test("test-5", () => {
         t2: true,
         t3: true,
         t4: true,
+        t5: true,
+        t6: true,
+        t7: true,
         f1: false,
         f2: false,
         f3: false,
         f4: false,
+        f5: false,
+        f6: false,
+        f7: false,
     });
 });
 
