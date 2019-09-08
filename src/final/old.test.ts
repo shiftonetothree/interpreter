@@ -72,7 +72,8 @@ END.
 });
 
 test("Part12", () => {
-    expect(final(`
+    expect({
+        ...final(`
 PROGRAM Part12;
 VAR
     a : INTEGER;
@@ -96,7 +97,9 @@ END;  {P1}
 BEGIN {Part12}
     a := 10;
 END.  {Part12}
-    `)).toEqual({a: 10});
+    `),
+    P1: undefined
+    }).toEqual({a: 10, P1: undefined});
 });
 
 function semanticAnalyz(program: string){
