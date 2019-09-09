@@ -217,13 +217,13 @@ export class Condition extends AST{
 }
 
 export class Then extends AST{
-    constructor(public token: Token, public statementList: AST[]){
+    constructor(public token: Token, public children: AST[]){
         super();
     }
 }
 
 export class MyElse extends AST{
-    constructor(public token: Token, public statementList: AST[]){
+    constructor(public token: Token, public children: AST[]){
         super();
     }
 }
@@ -1135,6 +1135,28 @@ export class SemanticAnalyzer extends NodeVisitor{
     visitProcedureCall(node: ProcedureCall){
         for(const paramNode of node.actualParams){
             this.visit(paramNode);
+        }
+    }
+
+    visitCondition(node: Condition){
+        if(this.visit(node.condition)){
+            this.visit(node.then);
+        }else{
+            if(node.myElse){
+                this.visit(node.myElse); 
+            }
+        }
+    }
+
+    visitThen(node: Then){
+        for(const child of node.children){
+            this.visit(child);
+        }
+    }
+
+    visitMyElse(node: MyElse){
+        for(const child of node.children){
+            this.visit(child);
         }
     }
 

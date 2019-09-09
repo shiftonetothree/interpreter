@@ -40,6 +40,9 @@ import {
     GREATER_OR_EQUALS_THAN,
     LESS_OR_EQUALS_THAN,
     LESS_THAN,
+    Condition,
+    Then,
+    MyElse,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -321,6 +324,28 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitCompound(node: Compound){
+        for(const child of node.children){
+            this.visit(child);
+        }
+    }
+
+    visitCondition(node: Condition){
+        if(this.visit(node.condition)){
+            this.visit(node.then);
+        }else{
+            if(node.myElse){
+                this.visit(node.myElse); 
+            }
+        }
+    }
+
+    visitThen(node: Then){
+        for(const child of node.children){
+            this.visit(child);
+        }
+    }
+
+    visitMyElse(node: MyElse){
         for(const child of node.children){
             this.visit(child);
         }
