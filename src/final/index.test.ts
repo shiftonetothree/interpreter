@@ -40,6 +40,8 @@ test("test-5", () => {
 test("test-6", () => {
     expect({... cli("src/final/test-6.pas")}).toEqual({
         a: 1,
+        b: 1,
+        c: 3,
     });
 });
 

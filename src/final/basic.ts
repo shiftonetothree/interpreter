@@ -217,13 +217,13 @@ export class Condition extends AST{
 }
 
 export class Then extends AST{
-    constructor(public token: Token, public children: AST[]){
+    constructor(public token: Token, public children: Compound | AST){
         super();
     }
 }
 
 export class MyElse extends AST{
-    constructor(public token: Token, public children: AST[]){
+    constructor(public token: Token, public children: Compound | AST){
         super();
     }
 }
@@ -757,7 +757,7 @@ export class Parser{
         const condition = this.expr();
         const tokenThen = this.currentToken;
         this.eat(THEN);
-        const thenStatementList = this.statementList();
+        const thenStatementList = this.statement();
         const then = new Then(tokenThen, thenStatementList);
         
         let node: Condition;
