@@ -46,6 +46,9 @@ export const PROGRAM = "PROGRAM";
 export const PROCEDURE = "PROCEDURE";
 export const VAR = "VAR";
 export const REAL = "REAL";
+export const IF = "IF";
+export const THEN = "THEN";
+export const ELSE = "ELSE";
 export const END = "END";
 
 // misc
@@ -88,6 +91,9 @@ export const tokenTuple = [
     AND,
     OR,
     NOT,
+    IF,
+    THEN,
+    ELSE,
     END,
 
     // misc
@@ -200,6 +206,28 @@ export class Assign extends AST{
     }
 }
 
+export class Condition extends AST{
+    constructor(public token: Token, 
+        public condition: AST,
+        public then: Then, 
+        public myElse?: MyElse
+    ){
+        super();
+    }
+}
+
+export class Then extends AST{
+    constructor(public token: Token, public statementList: AST[]){
+        super();
+    }
+}
+
+export class MyElse extends AST{
+    constructor(public token: Token, public statementList: AST[]){
+        super();
+    }
+}
+
 export class Var extends AST{
     value: string;
     constructor(public token: Token){
@@ -281,6 +309,9 @@ export class Lexer{
         [OR]: new Token(OR, OR),
         [NOT]: new Token(NOT, NOT),
         [PROCEDURE]: new Token(PROCEDURE,PROCEDURE),
+        [IF]: new Token(IF,IF),
+        [THEN]: new Token(THEN,THEN),
+        [ELSE]: new Token(ELSE,ELSE),
         [END]: new Token(END,END),
     }
     
@@ -699,6 +730,8 @@ export class Parser{
         let node: AST;
         if(this.currentToken.type === BEGIN){
             node = this.compoundStatement();
+        }else if(this.currentToken.type === IF){
+            node = this.conditionStatement();
         }else if(this.currentToken.type === ID && this.lexer.currentChar === LPAREN){
             node = this.proccallStatement();
         }else if(this.currentToken.type === ID){
@@ -715,6 +748,28 @@ export class Parser{
         this.eat(ASSIGN);
         const right = this.expr();
         const node= new Assign(left,token,right);
+        return node;
+    }
+
+    conditionStatement(): AST{
+        const token = this.currentToken;
+        this.eat(IF);
+        const condition = this.expr();
+        const tokenThen = this.currentToken;
+        this.eat(THEN);
+        const thenStatementList = this.statementList();
+        const then = new Then(tokenThen, thenStatementList);
+        
+        let node: Condition;
+        if(this.currentToken.type === ELSE){
+            const myElseToken = this.currentToken;
+            this.eat(ELSE);
+            const myElseStatementList = this.statementList();
+            const myElse = new MyElse(myElseToken, myElseStatementList);
+            node = new Condition(token,condition,then, myElse);
+        }else{
+            node = new Condition(token,condition,then);
+        }
         return node;
     }
 
@@ -899,6 +954,12 @@ export abstract class NodeVisitor{
             return this.visitProcedureDecl(node);
         }else if(node instanceof ProcedureCall){
             return this.visitProcedureCall(node);
+        }else if(node instanceof Condition){
+            return this.visitCondition(node);
+        }else if(node instanceof Then){
+            return this.visitThen(node);
+        }else if(node instanceof MyElse){
+            return this.visitMyElse(node);
         }else{
             throw new Error("ast错误");
         }
@@ -944,6 +1005,18 @@ export abstract class NodeVisitor{
     }
 
     visitProcedureCall(node: ProcedureCall){
+
+    }
+    
+    visitCondition(node: Condition){
+
+    }
+
+    visitThen(node: Then){
+
+    }
+
+    visitMyElse(node: MyElse){
 
     }
 }
