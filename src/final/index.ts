@@ -340,15 +340,11 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitThen(node: Then){
-        for(const child of node.children){
-            this.visit(child);
-        }
+        this.visit(node.child);
     }
 
     visitMyElse(node: MyElse){
-        for(const child of node.children){
-            this.visit(child);
-        }
+        this.visit(node.child);
     }
 
     interpret(tree: Program){

@@ -217,13 +217,13 @@ export class Condition extends AST{
 }
 
 export class Then extends AST{
-    constructor(public token: Token, public children: Compound | AST){
+    constructor(public token: Token, public child: Compound | AST){
         super();
     }
 }
 
 export class MyElse extends AST{
-    constructor(public token: Token, public children: Compound | AST){
+    constructor(public token: Token, public child: Compound | AST){
         super();
     }
 }
@@ -452,7 +452,7 @@ export class Lexer{
         //@ts-ignore
         const token: Token = this.RESERVED_KEYWORDS[result.toUpperCase()];
         if(token){
-            return token;
+            return new Token(token.type,token.value,this.lineno, this.column);
         }else{
             return new Token(ID, result, this.lineno, this.column);
         }
@@ -764,7 +764,7 @@ export class Parser{
         if(this.currentToken.type === ELSE){
             const myElseToken = this.currentToken;
             this.eat(ELSE);
-            const myElseStatementList = this.statementList();
+            const myElseStatementList = this.statement();
             const myElse = new MyElse(myElseToken, myElseStatementList);
             node = new Condition(token,condition,then, myElse);
         }else{
@@ -1139,25 +1139,19 @@ export class SemanticAnalyzer extends NodeVisitor{
     }
 
     visitCondition(node: Condition){
-        if(this.visit(node.condition)){
-            this.visit(node.then);
-        }else{
-            if(node.myElse){
-                this.visit(node.myElse); 
-            }
+        this.visit(node.condition)
+        this.visit(node.then);
+        if(node.myElse !== undefined){
+            this.visit(node.myElse); 
         }
     }
 
     visitThen(node: Then){
-        for(const child of node.children){
-            this.visit(child);
-        }
+        this.visit(node.child);
     }
 
     visitMyElse(node: MyElse){
-        for(const child of node.children){
-            this.visit(child);
-        }
+        this.visit(node.child);
     }
 
     semanticError(errorCode: ErrorCode, token: Token){

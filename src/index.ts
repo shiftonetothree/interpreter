@@ -1,11 +1,28 @@
 import { final } from "./final";
 try{
     final(`
-    program Main;
-    var f5 : boolean;
+program Main;
+    var a: integer;
+    var b: integer;
+    var c: integer;
 begin { Main }
-    f5 := not(1 + 2 < 3) and (1 < 2 or 3 * 2 > 4);
+    a := 0;
+    b := 0;
+    c := 1;
+    if a = 0 then
+        a := a + 1;
+    
+    if b = 0 then
+        b := b + 1
+    else
+        b := b + 2;
+    
+    if c = 0 then
+        c := c + 1
+    else
+        c := c + 2;
 end.  { Main }
+
     `, true, true);
 }catch(e){
     console.error(e);

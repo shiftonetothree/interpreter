@@ -10,12 +10,19 @@ begin { Main }
         a := a + 1;
     
     if b = 0 then
-        b := b + 1;
+        b := b + 1
     else
         b := b + 2;
     
     if c = 0 then
-        c := c + 1;
+        c := 1
+    else if c = 1 then
+        if (c + 1 = 2) and (c - 1 = 0) then
+            begin
+                c := 2
+            end
+        else 
+            c := 3
     else
-        c := c + 2;
+        c := 4;
 end.  { Main }
