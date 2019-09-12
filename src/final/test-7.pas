@@ -7,12 +7,16 @@ begin { Main }
     b := 0;
     c := 1;
     while a < 10 do
-        a := a + 1;
         begin
-            while (b < 20) and (b > 0) do
-                b := b + 1;
-            while (c < 30) and (c > 0) do
-                c := c + 1;
+        a := a + 1;
+        while (b < 20) and (b > 0) do
+            b := b + 1;
+        while (c < 30) and (c > 0) do
+        begin
+            if c < 15 then
+                break;
+            c := c + 1;
+        end
         end;
     
 end.  { Main }

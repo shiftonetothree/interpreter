@@ -244,6 +244,22 @@ export class MyDo extends AST{
     }
 }
 
+export class Break extends AST{
+    constructor(
+        public token: Token, 
+    ){
+        super();
+    }
+}
+
+export class Continue extends AST{
+    constructor(
+        public token: Token, 
+    ){
+        super();
+    }
+}
+
 export class Then extends AST{
     constructor(public token: Token, public child: Compound | AST){
         super();
@@ -764,6 +780,10 @@ export class Parser{
             node = this.compoundStatement();
         }else if(this.currentToken.type === WHILE){
             node = this.whileStatement();
+        }else if(this.currentToken.type === BREAK){
+            node = this.breakStatement();
+        }else if(this.currentToken.type === CONTINUE){
+            node = this.continueStatement();
         }else if(this.currentToken.type === IF){
             node = this.conditionStatement();
         }else if(this.currentToken.type === ID && this.lexer.currentChar === LPAREN){
@@ -818,6 +838,22 @@ export class Parser{
         
         let node: While;
         node = new While(token,condition,then);
+        return node;
+    }
+
+    breakStatement(): Break{
+        const token = this.currentToken;
+        this.eat(BREAK);
+        let node: Break;
+        node = new Break(token);
+        return node;
+    }
+
+    continueStatement(): Continue{
+        const token = this.currentToken;
+        this.eat(CONTINUE);
+        let node: Continue;
+        node = new Continue(token);
         return node;
     }
 
@@ -1006,6 +1042,10 @@ export abstract class NodeVisitor{
             return this.visitWhile(node);
         }else if(node instanceof MyDo){
             return this.visitMyDo(node);
+        }else if(node instanceof Break){
+            return this.visitBreak(node);
+        }else if(node instanceof Continue){
+            return this.visitContinue(node);
         }else if(node instanceof Condition){
             return this.visitCondition(node);
         }else if(node instanceof Then){
@@ -1065,6 +1105,14 @@ export abstract class NodeVisitor{
     }
 
     visitMyDo(node: MyDo){
+
+    }
+
+    visitBreak(node: Break){
+
+    }
+
+    visitContinue(node: Continue){
 
     }
     
