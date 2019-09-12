@@ -43,6 +43,8 @@ import {
     Condition,
     Then,
     MyElse,
+    While,
+    MyDo,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -330,7 +332,7 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitCondition(node: Condition){
-        if(this.visit(node.condition)){
+        if(this.visit(node.condition) === true){
             this.visit(node.then);
         }else{
             if(node.myElse){
@@ -344,6 +346,16 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitMyElse(node: MyElse){
+        this.visit(node.child);
+    }
+
+    visitWhile(node: While){
+        while(this.visit(node.condition) === true){
+            this.visit(node.myDo);
+        }
+    }
+
+    visitMyDo(node: MyDo){
         this.visit(node.child);
     }
 
