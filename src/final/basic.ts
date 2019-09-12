@@ -1210,6 +1210,14 @@ export class SemanticAnalyzer extends NodeVisitor{
         this.visit(node.child);
     }
 
+    visitWhile(node: While){
+        this.visit(node.condition);
+    }
+
+    visitMyDo(node: MyDo){
+        this.visit(node.child);
+    }
+
     visitMyElse(node: MyElse){
         this.visit(node.child);
     }
