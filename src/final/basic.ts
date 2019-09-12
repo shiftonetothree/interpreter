@@ -1002,6 +1002,10 @@ export abstract class NodeVisitor{
             return this.visitProcedureDecl(node);
         }else if(node instanceof ProcedureCall){
             return this.visitProcedureCall(node);
+        }else if(node instanceof While){
+            return this.visitWhile(node);
+        }else if(node instanceof MyDo){
+            return this.visitMyDo(node);
         }else if(node instanceof Condition){
             return this.visitCondition(node);
         }else if(node instanceof Then){
@@ -1053,6 +1057,14 @@ export abstract class NodeVisitor{
     }
 
     visitProcedureCall(node: ProcedureCall){
+
+    }
+
+    visitWhile(node: While){
+
+    }
+
+    visitMyDo(node: MyDo){
 
     }
     
