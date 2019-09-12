@@ -4,14 +4,17 @@ try{
         final(`
 program Main;
     var a: integer;
-    var b: integer;
-    var c: integer;
 begin { Main }
     a := 0;
-    b := 0;
-    c := 1;
-    while a = 0 do
+    while a < 30 do
+    begin
+        if a > 14 then
+            begin
+                a := a + 2;
+                continue;
+            end;
         a := a + 1;
+    end;
 end.  { Main }
 
     `, true, true)

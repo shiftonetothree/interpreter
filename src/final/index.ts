@@ -45,6 +45,8 @@ import {
     MyElse,
     While,
     MyDo,
+    Continue,
+    Break,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -147,6 +149,20 @@ class ActivationRecord{
         }
         const s = lines.join("\n");
         return s;
+    }
+}
+
+export class BreakError extends Error{
+    name = "BreakError";
+    constructor(public token?: Token){
+        super();
+    }
+}
+
+export class ContinueError extends Error{
+    name = "ContinueError";
+    constructor(public token?: Token){
+        super();
     }
 }
 
@@ -351,12 +367,33 @@ export class Interpreter extends NodeVisitor{
 
     visitWhile(node: While){
         while(this.visit(node.condition) === true){
-            this.visit(node.myDo);
+            try{
+                if(this.visit(node.myDo) === true){
+                    break;
+                }
+            }catch(e){
+                if(e.name === "BreakError"){
+                    break;
+                }else if(e.name === "ContinueError"){
+                    continue;
+                }else{
+                    throw e;
+                }
+            }
+            
         }
     }
 
     visitMyDo(node: MyDo){
         this.visit(node.child);
+    }
+
+    visitBreak(node: Break){
+        throw new BreakError(node.token);
+    }
+
+    visitContinue(node: Continue){
+        throw new ContinueError(node.token);
     }
 
     interpret(tree: Program){
