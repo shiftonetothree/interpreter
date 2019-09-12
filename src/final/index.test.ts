@@ -45,6 +45,14 @@ test("test-6", () => {
     });
 });
 
+test("test-7", () => {
+    expect({... cli("src/final/test-7.pas")}).toEqual({
+        a: 1,
+        b: 0,
+        c: 1,
+    });
+});
+
 test("test-error-1", () => {
     expect(()=>cli("src/final/test-error-1.pas")).toThrow();
 });

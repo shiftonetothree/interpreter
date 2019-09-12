@@ -49,6 +49,10 @@ export const REAL = "REAL";
 export const IF = "IF";
 export const THEN = "THEN";
 export const ELSE = "ELSE";
+export const WHILE = "WHILE";
+export const DO = "DO";
+export const BREAK = "BREAK";
+export const CONTINUE = "CONTINUE";
 export const END = "END";
 
 // misc
@@ -94,6 +98,10 @@ export const tokenTuple = [
     IF,
     THEN,
     ELSE,
+    WHILE,
+    DO,
+    BREAK,
+    CONTINUE,
     END,
 
     // misc
@@ -207,10 +215,30 @@ export class Assign extends AST{
 }
 
 export class Condition extends AST{
-    constructor(public token: Token, 
+    constructor(
+        public token: Token, 
         public condition: AST,
         public then: Then, 
         public myElse?: MyElse
+    ){
+        super();
+    }
+}
+
+export class While extends AST{
+    constructor(
+        public token: Token, 
+        public condition: AST,
+        public myDo: MyDo
+    ){
+        super();
+    }
+}
+
+export class MyDo extends AST{
+    constructor(
+        public token: Token, 
+        public child: Compound | AST
     ){
         super();
     }
@@ -312,6 +340,10 @@ export class Lexer{
         [IF]: new Token(IF,IF),
         [THEN]: new Token(THEN,THEN),
         [ELSE]: new Token(ELSE,ELSE),
+        [WHILE]: new Token(WHILE,WHILE),
+        [DO]: new Token(DO,DO),
+        [BREAK]: new Token(BREAK,BREAK),
+        [CONTINUE]: new Token(CONTINUE,CONTINUE),
         [END]: new Token(END,END),
     }
     
@@ -730,6 +762,8 @@ export class Parser{
         let node: AST;
         if(this.currentToken.type === BEGIN){
             node = this.compoundStatement();
+        }else if(this.currentToken.type === WHILE){
+            node = this.whileStatement();
         }else if(this.currentToken.type === IF){
             node = this.conditionStatement();
         }else if(this.currentToken.type === ID && this.lexer.currentChar === LPAREN){
@@ -770,6 +804,20 @@ export class Parser{
         }else{
             node = new Condition(token,condition,then);
         }
+        return node;
+    }
+
+    whileStatement(): AST{
+        const token = this.currentToken;
+        this.eat(WHILE);
+        const condition = this.expr();
+        const tokenMyDo = this.currentToken;
+        this.eat(DO);
+        const myDoStatementList = this.statement();
+        const then = new MyDo(tokenMyDo, myDoStatementList);
+        
+        let node: While;
+        node = new While(token,condition,then);
         return node;
     }
 
