@@ -17,7 +17,7 @@ begin { Main }
             if (b > 10) then
                 continue;
             b2 := b2 + 1;
-        end
+        end;
         while (c < 30) and (c > 0) do
         begin
             if c >= 15 then
