@@ -11,7 +11,7 @@ program Main;
 begin { Main }
     x := 1;
     y := 0;
-    x := PlusBy1();
+    x := PlusBy1(x);
 end.  { Main }
     `, true, true)
     );
