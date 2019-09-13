@@ -124,7 +124,8 @@ export enum ErrorCode{
     UNEXPECTED_TOKEN = "Unexpected token",
     ID_NOT_FOUND = "Identifier not found",
     VARIABLE_NOT_INITIALIZED = "Variable not initialized",
-    DUPLICATE_ID = "Duplicate id found"
+    DUPLICATE_ID = "Duplicate id found",
+    MISSING_RETURN = "Missing return statement",
 }
 
 export class MyError extends Error{
@@ -989,8 +990,11 @@ export class ScopedSymbolTable {
         [key:string]: MySymbol | undefined;
     } = {};
 
+    hasReturnStatement = false;
+
     constructor(
         public scopeName: string,
+        public scopeType: TokenType,
         public scopeLevel: number,
         public enclosingScope: ScopedSymbolTable | undefined = undefined
     ){
@@ -1168,7 +1172,7 @@ export abstract class NodeVisitor{
 }
 
 export class SemanticAnalyzer extends NodeVisitor{
-    currentScope = new ScopedSymbolTable("initial", 1);
+    currentScope = new ScopedSymbolTable("initial", PROGRAM,1);
 
     constructor(scope: boolean){
         super();
@@ -1176,7 +1180,7 @@ export class SemanticAnalyzer extends NodeVisitor{
     }
 
     visitProgram(node: Program){
-        const globalScope = new ScopedSymbolTable("global", 1);
+        const globalScope = new ScopedSymbolTable("global", PROGRAM,1);
         this.currentScope = globalScope;
         this.visit(node.block);
         this.log(`${globalScope}`);
@@ -1192,6 +1196,7 @@ export class SemanticAnalyzer extends NodeVisitor{
         this.log(`ENTER scope: ${procName}`);
         const procedureScope = new ScopedSymbolTable(
             procName,
+            PROCEDURE,
             this.currentScope.scopeLevel + 1,
             this.currentScope
         );
@@ -1218,6 +1223,7 @@ export class SemanticAnalyzer extends NodeVisitor{
         this.log(`ENTER scope: ${funcName}`);
         const procedureScope = new ScopedSymbolTable(
             funcName,
+            FUNCTION,
             this.currentScope.scopeLevel + 1,
             this.currentScope
         );
@@ -1233,6 +1239,12 @@ export class SemanticAnalyzer extends NodeVisitor{
         this.visitType(node.returnType);
         this.visit(node.blockNode);
         this.log(`${procedureScope}`);
+        if(procedureScope.hasReturnStatement === false){
+            throw this.semanticError(
+                ErrorCode.MISSING_RETURN,
+                node.token,
+            );
+        }
         // @ts-ignore
         this.currentScope = this.currentScope.enclosingScope;
         this.log(`LEAVE scope: ${funcName}`);
@@ -1274,12 +1286,17 @@ export class SemanticAnalyzer extends NodeVisitor{
 
     visitAssign(node: Assign){
         const varName = node.left.value;
-        const varSymbol = this.currentScope.lookup(varName);
-        if(varSymbol === undefined){
-            throw this.semanticError(
-                ErrorCode.ID_NOT_FOUND,
-                node.token
-            );
+        const currentScope = this.currentScope;
+        if(currentScope.scopeType === FUNCTION && varName === currentScope.scopeName){
+            currentScope.hasReturnStatement = true;
+        }else{
+            const varSymbol = this.currentScope.lookup(varName);
+            if(varSymbol === undefined){
+                throw this.semanticError(
+                    ErrorCode.ID_NOT_FOUND,
+                    node.token
+                );
+            }
         }
         this.visit(node.right);
     }

@@ -385,6 +385,12 @@ export class Interpreter extends NodeVisitor{
             this.log(`${this.callStack}`);
             this.callStack.pop();
             this.log(`LEAVE: FUNCTION ${name}`);
+            if(ar.returnValue === undefined){
+                throw this.runtimeError(
+                    ErrorCode.MISSING_RETURN,
+                    proc.token
+                );
+            }
             return ar.returnValue;
         }
         

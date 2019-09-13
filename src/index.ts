@@ -6,7 +6,8 @@ program Main;
     var x, y : integer;
     function PlusBy1(a: integer): integer;
     begin
-        PlusBy1 := a + 1;
+        if a = 1 then
+            PlusBy1 := a + 1;
     end;
 begin { Main }
     x := 1;
