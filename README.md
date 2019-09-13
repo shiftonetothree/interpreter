@@ -84,3 +84,7 @@
     * <=
     * \>
     * \>=
+
+## 你可以在这里学习pascal语言 http://www.tutorialspoint.com/pascal/pascal_program_structure.htm
+
+## You could learn Pascal at http://www.tutorialspoint.com/pascal/pascal_program_structure.htm
