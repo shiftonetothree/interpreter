@@ -55,7 +55,7 @@ test("test-7", () => {
 });
 
 test("test-function", () => {
-    expect({... cli("src/final/test-function.pas"), PlusXAndY: undefined}).toEqual({x: 4, y: 4, PlusXAndY: undefined});
+    expect({... cli("src/final/test-function.pas"), PlusXAndY: undefined, PlusBy1: undefined}).toEqual({x: 5, y: 4, PlusXAndY: undefined, PlusBy1: undefined});
 });
 
 test("test-error-1", () => {

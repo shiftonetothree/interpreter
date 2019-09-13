@@ -47,6 +47,8 @@ import {
     MyDo,
     Continue,
     Break,
+    FunctionDecl,
+    FUNCTION,
 } from "./basic";
 
 let _SHOULD_LOG_STACK = false;
@@ -99,6 +101,8 @@ class ActivationRecord{
     members:{
         [key: string]: string | number | AST | undefined,
     } = {};
+
+    returnValue: number | string | undefined;
     constructor(
         public name: string, 
         public type: TokenType, 
@@ -117,9 +121,12 @@ class ActivationRecord{
         }else if(this.enclosingActivationRecord !== undefined){
             this.enclosingActivationRecord.setItem(key, value);
         }else{
-            throw new RuntimeError(ErrorCode.ID_NOT_FOUND);
+            throw new RuntimeError(ErrorCode.ID_NOT_FOUND, undefined, `${ErrorCode.ID_NOT_FOUND} -> ${key}`);
         }
-        
+    }
+
+    setReturn(value: string | number){
+        this.returnValue = value;
     }
 
     getItem(key: string): string | number | AST | undefined{
@@ -128,7 +135,7 @@ class ActivationRecord{
         }else if(this.enclosingActivationRecord !== undefined){
             return this.enclosingActivationRecord.getItem(key);
         }else{
-            return new RuntimeError(ErrorCode.ID_NOT_FOUND);
+            throw new RuntimeError(ErrorCode.ID_NOT_FOUND, undefined, `${ErrorCode.ID_NOT_FOUND} -> ${key}`);
         }
     }
 
@@ -162,6 +169,13 @@ export class BreakError extends Error{
 export class ContinueError extends Error{
     name = "ContinueError";
     constructor(public token?: Token){
+        super();
+    }
+}
+
+export class ReturnError extends Error{
+    name = "ReturnError";
+    constructor(public value: string | number,public token?: Token){
         super();
     }
 }
@@ -219,6 +233,13 @@ export class Interpreter extends NodeVisitor{
         const ar = this.callStack.peek();
         ar.declareItem(procName);
         ar.setItem(procName, node);
+    }
+
+    visitFunctionDecl(node: FunctionDecl){
+        const funcName = node.funcName;
+        const ar = this.callStack.peek();
+        ar.declareItem(funcName);
+        ar.setItem(funcName, node);
     }
 
     visitBlock(node: Block){
@@ -290,7 +311,11 @@ export class Interpreter extends NodeVisitor{
         const varName = node.left.value;
         const valValue = this.visit(node.right);
         const ar = this.callStack.peek();
-        ar.setItem(varName, valValue);
+        if (ar.type === FUNCTION && varName === ar.name){
+            ar.setReturn(valValue);
+        }else{
+            ar.setItem(varName, valValue);
+        }
     }
 
     visitNoOp(node: NoOp){
@@ -317,28 +342,52 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitCall(node: Call){
-        const procName = node.name;
+        const name = node.name;
         let ar = this.callStack.peek();
         // @ts-ignore
-        const proc: ProcedureDecl = ar.getItem(procName);
-        this.log(`ENTER: PROCEDURE ${procName}`);
-        
-        const actualParamValues: (number|string)[] = [];
-        for(const actualParam of node.actualParams){
-            actualParamValues.push(this.visit(actualParam));
-        }
+        const proc: ProcedureDecl | FunctionDecl = ar.getItem(name);
 
-        const newAr = new ActivationRecord(procName,PROCEDURE);
-        this.callStack.push(newAr);
-        ar = this.callStack.peek();
-        for(let i=0;i<proc.params.length;i++){
-            ar.declareItem(proc.params[i].varNode.value);
-            ar.setItem(proc.params[i].varNode.value, actualParamValues[i]);
+        if(proc instanceof ProcedureDecl){
+            this.log(`ENTER: PROCEDURE ${name}`);
+        
+            const actualParamValues: (number|string)[] = [];
+            for(const actualParam of node.actualParams){
+                actualParamValues.push(this.visit(actualParam));
+            }
+    
+            const newAr = new ActivationRecord(name,PROCEDURE);
+            this.callStack.push(newAr);
+            ar = this.callStack.peek();
+            for(let i=0;i<proc.params.length;i++){
+                ar.declareItem(proc.params[i].varNode.value);
+                ar.setItem(proc.params[i].varNode.value, actualParamValues[i]);
+            }
+            this.visit(proc.blockNode);
+            this.log(`${this.callStack}`);
+            this.callStack.pop();
+            this.log(`LEAVE: PROCEDURE ${name}`);
+        }else if(proc instanceof FunctionDecl){
+            this.log(`ENTER: FUNCTION ${name}`);
+        
+            const actualParamValues: (number|string)[] = [];
+            for(const actualParam of node.actualParams){
+                actualParamValues.push(this.visit(actualParam));
+            }
+    
+            const newAr = new ActivationRecord(name,FUNCTION);
+            this.callStack.push(newAr);
+            ar = this.callStack.peek();
+            for(let i=0;i<proc.params.length;i++){
+                ar.declareItem(proc.params[i].varNode.value);
+                ar.setItem(proc.params[i].varNode.value, actualParamValues[i]);
+            }
+            this.visit(proc.blockNode);
+            this.log(`${this.callStack}`);
+            this.callStack.pop();
+            this.log(`LEAVE: FUNCTION ${name}`);
+            return ar.returnValue;
         }
-        this.visit(proc.blockNode);
-        this.log(`${this.callStack}`);
-        this.callStack.pop();
-        this.log(`LEAVE: PROCEDURE ${procName}`);
+        
     }
 
     visitCompound(node: Compound){
