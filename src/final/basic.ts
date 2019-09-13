@@ -179,7 +179,7 @@ export class Program extends AST{
 }
 
 export class Block extends AST{
-    constructor(public declarations: (VarDecl | ProcedureDecl)[], public compoundStatement: Compound){
+    constructor(public declarations: (VarDecl | ProcedureDecl | FunctionDecl)[], public compoundStatement: Compound){
         super();
     }
 }
@@ -197,13 +197,13 @@ export class ProcedureDecl extends AST{
 }
 
 export class Call extends AST{
-    constructor(public procName: string, public actualParams: AST[], public token: Token){
+    constructor(public name: string, public actualParams: AST[], public token: Token){
         super();
     }
 }
 
 export class FunctionDecl extends AST{
-    constructor(public procName: string,public params: Param[],public returnType: Type,public blockNode: Block, public token: Token){
+    constructor(public funcName: string,public params: Param[],public returnType: Type,public blockNode: Block, public token: Token){
         super();
     }
 }
@@ -714,9 +714,9 @@ export class Parser{
         const type = this.typeSpec();
         this.eat(SEMI);
         const blockNode= this.block();
-        const procDecl: ProcedureDecl = new FunctionDecl(funcName as string, params,type, blockNode, token);
+        const funcDecl: FunctionDecl = new FunctionDecl(funcName as string, params,type, blockNode, token);
         this.eat(SEMI);
-        return procDecl;
+        return funcDecl;
     }
 
     formalParameterList(){
@@ -1069,6 +1069,8 @@ export abstract class NodeVisitor{
             return this.visitNoOp(node);
         }else if(node instanceof ProcedureDecl){
             return this.visitProcedureDecl(node);
+        }else if(node instanceof FunctionDecl){
+            return this.visitFunctionDecl(node);
         }else if(node instanceof Call){
             return this.visitCall(node);
         }else if(node instanceof While){
@@ -1086,7 +1088,7 @@ export abstract class NodeVisitor{
         }else if(node instanceof MyElse){
             return this.visitMyElse(node);
         }else{
-            throw new Error("ast错误");
+            throw new Error("Unknown AST Type");
         }
     }
 
@@ -1127,6 +1129,9 @@ export abstract class NodeVisitor{
     }
 
     visitProcedureDecl(node: ProcedureDecl){
+    }
+
+    visitFunctionDecl(node: FunctionDecl){
     }
 
     visitCall(node: Call){
@@ -1204,6 +1209,33 @@ export class SemanticAnalyzer extends NodeVisitor{
         // @ts-ignore
         this.currentScope = this.currentScope.enclosingScope;
         this.log(`LEAVE scope: ${procName}`);
+    }
+
+    visitFunctionDecl(node: FunctionDecl){
+        const funcName = node.funcName;
+        const funcSymbol = new ProcedureSymbol(funcName);
+        this.currentScope.insert(funcSymbol);
+        this.log(`ENTER scope: ${funcName}`);
+        const procedureScope = new ScopedSymbolTable(
+            funcName,
+            this.currentScope.scopeLevel + 1,
+            this.currentScope
+        );
+        this.currentScope = procedureScope;
+        for(const param of node.params){
+            const paramType = this.currentScope.lookup(param.typeNode.value);
+            const paramName = param.varNode.value;
+            // @ts-ignore
+            const varSymbol: VarSymbol = new VarSymbol(paramName, paramType);
+            this.currentScope.insert(varSymbol);
+            funcSymbol.params.push(varSymbol);
+        }
+        this.visitType(node.returnType);
+        this.visit(node.blockNode);
+        this.log(`${procedureScope}`);
+        // @ts-ignore
+        this.currentScope = this.currentScope.enclosingScope;
+        this.log(`LEAVE scope: ${funcName}`);
     }
 
     visitBlock(node: Block){

@@ -317,7 +317,7 @@ export class Interpreter extends NodeVisitor{
     }
 
     visitCall(node: Call){
-        const procName = node.procName;
+        const procName = node.name;
         let ar = this.callStack.peek();
         // @ts-ignore
         const proc: ProcedureDecl = ar.getItem(procName);
