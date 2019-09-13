@@ -44,6 +44,7 @@ export const NOT = "NOT";
 export const INTEGER_DIV = "DIV";
 export const PROGRAM = "PROGRAM";
 export const PROCEDURE = "PROCEDURE";
+export const FUNCTION = "FUNCTION";
 export const VAR = "VAR";
 export const REAL = "REAL";
 export const IF = "IF";
@@ -87,6 +88,7 @@ export const tokenTuple = [
     INTEGER_DIV,
     PROGRAM,
     PROCEDURE,
+    FUNCTION,
     VAR,
     INTEGER,
     BOOLEAN,
@@ -189,7 +191,19 @@ export class VarDecl extends AST{
 }
 
 export class ProcedureDecl extends AST{
-    constructor(public procName: string,public params: Param[], public blockNode: Block){
+    constructor(public procName: string,public params: Param[], public blockNode: Block, public token: Token){
+        super();
+    }
+}
+
+export class Call extends AST{
+    constructor(public procName: string, public actualParams: AST[], public token: Token){
+        super();
+    }
+}
+
+export class FunctionDecl extends AST{
+    constructor(public procName: string,public params: Param[],public returnType: Type,public blockNode: Block, public token: Token){
         super();
     }
 }
@@ -315,12 +329,6 @@ export class MyBoolean extends AST{
     }
 }
 
-export class ProcedureCall extends AST{
-    constructor(public procName: string, public actualParams: AST[], public token: Token){
-        super();
-    }
-}
-
 export class Token{
     constructor(
         public type: TokenType, 
@@ -353,6 +361,7 @@ export class Lexer{
         [OR]: new Token(OR, OR),
         [NOT]: new Token(NOT, NOT),
         [PROCEDURE]: new Token(PROCEDURE,PROCEDURE),
+        [FUNCTION]: new Token(FUNCTION,FUNCTION),
         [IF]: new Token(IF,IF),
         [THEN]: new Token(THEN,THEN),
         [ELSE]: new Token(ELSE,ELSE),
@@ -523,6 +532,11 @@ export class Parser{
         this.currentToken = this.lexer.getNextToken();
     }
 
+    peek(){
+        const peekChar = this.lexer.currentChar;
+        return peekChar;
+    }
+
     eat(type: TokenType){
         if(this.currentToken != undefined && this.currentToken.type === type){
             this.currentToken = this.lexer.getNextToken();
@@ -556,7 +570,7 @@ export class Parser{
         return programNode;
     }
 
-    
+
 
     precedence1(): AST{
         const currentToken = this.currentToken;
@@ -586,6 +600,8 @@ export class Parser{
             const result = this.expr();
             this.eat(RPAREN);
             return result;
+        }else if(this.currentToken.type === ID && this.peek() === LPAREN){
+            return this.callStatement();
         }else{
             return this.variable();
         }
@@ -652,7 +668,7 @@ export class Parser{
     }
 
     declarations(){
-        let declarations: (VarDecl | ProcedureDecl)[] = [];
+        let declarations: (VarDecl | ProcedureDecl | FunctionDecl)[] = [];
         while(true){
             if(this.currentToken.type === VAR){
                 this.eat(VAR);
@@ -665,6 +681,9 @@ export class Parser{
             }else if(this.currentToken.type === PROCEDURE){
                 const procDecl = this.procedureDeclaration();
                 declarations.push(procDecl);
+            }else if(this.currentToken.type === FUNCTION){
+                const funcDecl = this.functionDeclaration();
+                declarations.push(funcDecl);
             }else{
                 break;
             }
@@ -675,12 +694,27 @@ export class Parser{
     procedureDeclaration(){
         this.eat(PROCEDURE);
         const procName = this.currentToken.value;
+        const token = this.currentToken;
         this.eat(ID);
-        let params = this.formalParameterList();
+        const params = this.formalParameterList();
         this.eat(SEMI);
         const blockNode= this.block();
-        // @ts-ignore
-        const procDecl: ProcedureDecl = new ProcedureDecl(procName, params, blockNode);
+        const procDecl: ProcedureDecl = new ProcedureDecl(procName as string, params, blockNode, token);
+        this.eat(SEMI);
+        return procDecl;
+    }
+
+    functionDeclaration(){
+        this.eat(FUNCTION);
+        const funcName = this.currentToken.value;
+        const token = this.currentToken;
+        this.eat(ID);
+        const params = this.formalParameterList();
+        this.eat(COLON);
+        const type = this.typeSpec();
+        this.eat(SEMI);
+        const blockNode= this.block();
+        const procDecl: ProcedureDecl = new FunctionDecl(funcName as string, params,type, blockNode, token);
         this.eat(SEMI);
         return procDecl;
     }
@@ -787,7 +821,7 @@ export class Parser{
         }else if(this.currentToken.type === IF){
             node = this.conditionStatement();
         }else if(this.currentToken.type === ID && this.lexer.currentChar === LPAREN){
-            node = this.proccallStatement();
+            node = this.callStatement();
         }else if(this.currentToken.type === ID){
             node = this.assignmentStatement();
         }else{
@@ -857,9 +891,9 @@ export class Parser{
         return node;
     }
 
-    proccallStatement(){
+    callStatement(){
         const token = this.currentToken;
-        const procName = this.currentToken.value;
+        const procName = this.currentToken.value as string;
         this.eat(ID);
         this.eat(LPAREN);
         const actualParams:AST[] = [];
@@ -876,8 +910,7 @@ export class Parser{
 
         this.eat(RPAREN);
 
-        const node = new ProcedureCall(
-            // @ts-ignore
+        const node = new Call(
             procName,
             actualParams,
             token
@@ -1036,8 +1069,8 @@ export abstract class NodeVisitor{
             return this.visitNoOp(node);
         }else if(node instanceof ProcedureDecl){
             return this.visitProcedureDecl(node);
-        }else if(node instanceof ProcedureCall){
-            return this.visitProcedureCall(node);
+        }else if(node instanceof Call){
+            return this.visitCall(node);
         }else if(node instanceof While){
             return this.visitWhile(node);
         }else if(node instanceof MyDo){
@@ -1096,7 +1129,7 @@ export abstract class NodeVisitor{
     visitProcedureDecl(node: ProcedureDecl){
     }
 
-    visitProcedureCall(node: ProcedureCall){
+    visitCall(node: Call){
 
     }
 
@@ -1240,7 +1273,7 @@ export class SemanticAnalyzer extends NodeVisitor{
         }
     }
 
-    visitProcedureCall(node: ProcedureCall){
+    visitCall(node: Call){
         for(const paramNode of node.actualParams){
             this.visit(paramNode);
         }

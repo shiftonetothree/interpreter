@@ -17,7 +17,7 @@ import {
     Assign,
     NoOp,
     Var,
-    ProcedureCall,
+    Call,
     Compound,
     Token,
     ErrorCode,
@@ -316,7 +316,7 @@ export class Interpreter extends NodeVisitor{
         );
     }
 
-    visitProcedureCall(node: ProcedureCall){
+    visitCall(node: Call){
         const procName = node.procName;
         let ar = this.callStack.peek();
         // @ts-ignore

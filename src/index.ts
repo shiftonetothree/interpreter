@@ -3,20 +3,16 @@ try{
     console.log(
         final(`
 program Main;
-    var a: integer;
-begin { Main }
-    a := 0;
-    while a < 30 do
+    var x, y : integer;
+    function PlusBy1(a: integer): integer;
     begin
-        if a > 14 then
-            begin
-                a := a + 2;
-                continue;
-            end;
-        a := a + 1;
+        PlusBy1 := a + 1;
     end;
+begin { Main }
+    x := 1;
+    y := 0;
+    x := PlusBy1();
 end.  { Main }
-
     `, true, true)
     );
 }catch(e){
